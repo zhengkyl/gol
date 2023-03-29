@@ -21,10 +21,10 @@ import (
 
 const (
 	host = "localhost"
-	port = 2634
+	port = 2345
 )
 
-func NewServer() *ssh.Server {
+func RunServer() {
 	s, err := wish.NewServer(
 		wish.WithAddress(fmt.Sprintf("%s:%d", host, port)),
 		wish.WithMiddleware(
@@ -57,8 +57,6 @@ func NewServer() *ssh.Server {
 	if err := s.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
 		log.Error("could not stop server", "error", err)
 	}
-
-	return s
 }
 
 func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {

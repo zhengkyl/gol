@@ -6,183 +6,121 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/zhengkyl/gtg/ui/common"
+	"github.com/zhengkyl/gtg/ui/life"
 )
 
 type Model struct {
-	common common.Common
-	paused bool
-	posX   int
-	posY   int
-	board  [][]bool
-	count  int
+	boardWidth  int
+	boardHeight int
+	board       [][]life.Life
+	posX        int
+	posY        int
+	paused      bool
 }
 
 var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("201"))
 var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color("0"))
 
 func New(width, height int) Model {
-	boardWidth := width / 2
+	boardWidth := (width / 2)
 
-	board := make([][]bool, height)
-	for i := range board {
-		board[i] = make([]bool, boardWidth)
-	}
+	// space for mode
+	boardHeight := height - 1
 
 	return Model{
-		common: common.Common{
-			Width:  width,
-			Height: height,
-		},
-		paused: true,
-		board:  board,
-		posX:   boardWidth / 2,
-		posY:   height / 2,
-		count:  0,
+		boardWidth:  boardWidth,
+		boardHeight: boardHeight,
+		board:       life.NewBoard(boardWidth, boardHeight),
+		posX:        boardWidth / 2,
+		posY:        boardHeight / 2,
+		paused:      true,
 	}
 }
 
 func (m Model) Init() tea.Cmd {
-	// return m.tickOnce()
 	return nil
 }
-
-var dir = [3]int{-1, 0, 1}
 
 func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.count++
 		m.paused = true
-		// TODO
-		m.common.Width = msg.Width / 2
-		m.common.Height = msg.Height
 
-		m.board = make([][]bool, msg.Height)
-		for i := range m.board {
-			m.board[i] = make([]bool, msg.Width/2)
-		}
+		m.boardWidth = msg.Width / 2
+		m.boardHeight = msg.Height - 1
+
+		m.board = life.NewBoard(m.boardWidth, m.boardHeight)
 
 	case TickMsg:
 		if !m.paused {
-			cmds = append(cmds, m.tickOnce())
+			cmds = append(cmds, tickOnce())
 
-			newBoard := make([][]bool, m.common.Height)
-			for i := range newBoard {
-				newBoard[i] = make([]bool, m.common.Width)
-			}
-
-			for y := range m.board {
-
-				for x := range m.board[y] {
-
-					neighbors := 0
-
-					for _, dirX := range dir {
-						if x+dirX < 0 || x+dirX >= len(m.board[y]) {
-							continue
-						}
-						for _, dirY := range dir {
-							if y+dirY < 0 || y+dirY >= len(m.board) {
-								continue
-							}
-							if dirY == 0 && dirX == 0 {
-								continue
-							}
-
-							if m.board[y+dirY][x+dirX] {
-								neighbors++
-							}
-
-						}
-					}
-
-					if !m.board[y][x] && neighbors == 3 {
-						newBoard[y][x] = true
-					}
-					if m.board[y][x] {
-						if neighbors < 2 || neighbors > 3 {
-							newBoard[y][x] = false
-						} else {
-							newBoard[y][x] = true
-						}
-					}
-
-				}
-			}
-
-			m.board = newBoard
-
+			m.board = life.NextBoard(m.board)
 		}
 
 	case tea.KeyMsg:
 		switch msg.String() {
 		case "ctrl+c", "q":
 			return m, tea.Quit
+		case "w":
+			m.posY = (m.posY - 1 + m.boardHeight) % m.boardHeight
+		case "a":
+			m.posX = (m.posX - 1 + m.boardWidth) % m.boardWidth
+		case "s":
+			m.posY = (m.posY + 1 + m.boardHeight) % m.boardHeight
+		case "d":
+			m.posX = (m.posX + 1 + m.boardWidth) % m.boardWidth
+		case " ":
+			m.board[m.posY][m.posX] = !m.board[m.posY][m.posX]
 		case "enter":
 			m.paused = !m.paused
 			if !m.paused {
-				cmds = append(cmds, m.tickOnce())
+				cmds = append(cmds, tickOnce())
 			}
-		case " ":
-			m.board[m.posY][m.posX] = !m.board[m.posY][m.posX]
-		case "w":
-			m.posY--
-		case "a":
-			m.posX--
-		case "s":
-			m.posY++
-		case "d":
-			m.posX++
 		}
-		// cmds = append(cmds, func() tea.Msg { return nil })
-		m.count++
 	}
 
 	return m, tea.Batch(cmds...)
 }
 
 func (m Model) View() string {
-	// view := fmt.Sprint(m.count)
-	// view := ""
 	var lines []string
 
 	for y := range m.board {
-		// view += fmt.Sprint(i)
 		line := ""
 		for x, alive := range m.board[y] {
-			var style lipgloss.Style
+			style := deadStyle
 			if alive {
 				style = aliveStyle
-			} else {
-				style = deadStyle
 			}
 
+			pixel := "  "
 			if m.paused && y == m.posY && x == m.posX {
-				line += style.Render("[]")
-				continue
+				pixel = "[]"
 			}
 
-			if alive {
-				line += style.Render("  ")
-			} else {
-				line += style.Render("  ")
-			}
+			line += style.Render(pixel)
 		}
 
 		lines = append(lines, line)
 	}
+
+	mode := "Playing"
+	if m.paused {
+		mode = "Paused"
+	}
+	lines = append(lines, mode)
 
 	return strings.Join(lines, "\n")
 }
 
 type TickMsg struct{}
 
-func (m Model) tickOnce() tea.Cmd {
+func tickOnce() tea.Cmd {
 
-	return tea.Tick(time.Second/2, func(t time.Time) tea.Msg {
+	return tea.Tick(time.Second/5, func(t time.Time) tea.Msg {
 		return TickMsg{}
 	})
 }
