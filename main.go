@@ -1,6 +1,6 @@
 package main
 
-import "github.com/zhengkyl/gtg/server"
+import "github.com/zhengkyl/gol/server"
 
 func main() {
 	server.RunServer()

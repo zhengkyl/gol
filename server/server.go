@@ -16,7 +16,7 @@ import (
 
 	bm "github.com/charmbracelet/wish/bubbletea"
 	lm "github.com/charmbracelet/wish/logging"
-	"github.com/zhengkyl/gtg/ui"
+	"github.com/zhengkyl/gol/ui"
 )
 
 const (

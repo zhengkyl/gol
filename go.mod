@@ -1,4 +1,4 @@
-module github.com/zhengkyl/gtg
+module github.com/zhengkyl/gol
 
 go 1.19
 
