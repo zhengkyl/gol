@@ -9,7 +9,7 @@ import (
 	"github.com/zhengkyl/gol/ui/life"
 )
 
-type Model struct {
+type model struct {
 	boardWidth  int
 	boardHeight int
 	board       [][]life.Life
@@ -21,13 +21,22 @@ type Model struct {
 var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("201"))
 var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color("0"))
 
-func New(width, height int) Model {
+type TickMsg struct{}
+
+func tickOnce() tea.Cmd {
+
+	return tea.Tick(time.Second/5, func(t time.Time) tea.Msg {
+		return TickMsg{}
+	})
+}
+
+func New(width, height int) model {
 	boardWidth := (width / 2)
 
 	// space for mode
 	boardHeight := height - 1
 
-	return Model{
+	return model{
 		boardWidth:  boardWidth,
 		boardHeight: boardHeight,
 		board:       life.NewBoard(boardWidth, boardHeight),
@@ -37,11 +46,11 @@ func New(width, height int) Model {
 	}
 }
 
-func (m Model) Init() tea.Cmd {
+func (m model) Init() tea.Cmd {
 	return nil
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -85,7 +94,7 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m Model) View() string {
+func (m model) View() string {
 	var lines []string
 
 	for y := range m.board {
@@ -114,13 +123,4 @@ func (m Model) View() string {
 	lines = append(lines, mode)
 
 	return strings.Join(lines, "\n")
-}
-
-type TickMsg struct{}
-
-func tickOnce() tea.Cmd {
-
-	return tea.Tick(time.Second/5, func(t time.Time) tea.Msg {
-		return TickMsg{}
-	})
 }
