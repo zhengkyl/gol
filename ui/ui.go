@@ -4,8 +4,10 @@ import (
 	"strings"
 	"time"
 
+	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/zhengkyl/gol/ui/keybinds"
 	"github.com/zhengkyl/gol/ui/life"
 )
 
@@ -70,20 +72,20 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		}
 
 	case tea.KeyMsg:
-		switch msg.String() {
-		case "ctrl+c", "q":
+		switch {
+		case key.Matches(msg, keybinds.KeyBinds.Quit):
 			return m, tea.Quit
-		case "w":
+		case key.Matches(msg, keybinds.KeyBinds.Up):
 			m.posY = (m.posY - 1 + m.boardHeight) % m.boardHeight
-		case "a":
+		case key.Matches(msg, keybinds.KeyBinds.Left):
 			m.posX = (m.posX - 1 + m.boardWidth) % m.boardWidth
-		case "s":
+		case key.Matches(msg, keybinds.KeyBinds.Down):
 			m.posY = (m.posY + 1 + m.boardHeight) % m.boardHeight
-		case "d":
+		case key.Matches(msg, keybinds.KeyBinds.Right):
 			m.posX = (m.posX + 1 + m.boardWidth) % m.boardWidth
-		case " ":
+		case key.Matches(msg, keybinds.KeyBinds.Place):
 			m.board[m.posY][m.posX] = !m.board[m.posY][m.posX]
-		case "enter":
+		case key.Matches(msg, keybinds.KeyBinds.Pause):
 			m.paused = !m.paused
 			if !m.paused {
 				cmds = append(cmds, tickOnce())
@@ -116,10 +118,14 @@ func (m model) View() string {
 		lines = append(lines, line)
 	}
 
-	mode := "Playing"
+	help := "wasd/move - <space>/place - <enter>/pause"
+
+	mode := "Playing    "
 	if m.paused {
-		mode = "Paused"
+		mode = "Paused     "
 	}
+
+	mode += help
 	lines = append(lines, mode)
 
 	return strings.Join(lines, "\n")
