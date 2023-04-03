@@ -3,6 +3,7 @@ FROM alpine:latest
 RUN apk update && apk add --update git && rm -rf /var/cache/apk/*
 
 COPY gol /usr/local/bin/gol
+COPY .ssh /.ssh
 
 # Create directories
 # WORKDIR /soft-serve
