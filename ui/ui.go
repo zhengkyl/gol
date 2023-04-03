@@ -18,7 +18,7 @@ type model struct {
 	paused      bool
 }
 
-var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("201"))
+var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("227"))
 var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color("0"))
 
 type TickMsg struct{}
