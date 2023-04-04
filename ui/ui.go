@@ -14,7 +14,7 @@ import (
 type model struct {
 	boardWidth  int
 	boardHeight int
-	board       [][]life.Life
+	board       [][]life.Cell
 	posX        int
 	posY        int
 	paused      bool
@@ -84,7 +84,11 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keybinds.KeyBinds.Right):
 			m.posX = (m.posX + 1 + m.boardWidth) % m.boardWidth
 		case key.Matches(msg, keybinds.KeyBinds.Place):
-			m.board[m.posY][m.posX] = !m.board[m.posY][m.posX]
+			if m.board[m.posY][m.posX].IsAlive() {
+				m.board[m.posY][m.posX].Color = 1
+			} else {
+				m.board[m.posY][m.posX].Color = 0
+			}
 		case key.Matches(msg, keybinds.KeyBinds.Pause):
 			m.paused = !m.paused
 			if !m.paused {
@@ -101,9 +105,9 @@ func (m model) View() string {
 
 	for y := range m.board {
 		line := ""
-		for x, alive := range m.board[y] {
+		for x, cell := range m.board[y] {
 			style := deadStyle
-			if alive {
+			if cell.IsAlive() {
 				style = aliveStyle
 			}
 

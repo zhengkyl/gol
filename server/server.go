@@ -9,14 +9,11 @@ import (
 	"syscall"
 	"time"
 
-	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
 
-	bm "github.com/charmbracelet/wish/bubbletea"
 	lm "github.com/charmbracelet/wish/logging"
-	"github.com/zhengkyl/gol/ui"
 )
 
 const (
@@ -29,7 +26,8 @@ func RunServer() {
 		wish.WithAddress(fmt.Sprintf("%s:%d", host, port)),
 		wish.WithHostKeyPath(".ssh/server_ed25519"),
 		wish.WithMiddleware(
-			bm.Middleware(teaHandler),
+			// gameMiddleware(teaHandler, termenv.ANSI256),
+			// bm.Middleware(teaHandler),
 			lm.Middleware(),
 		),
 	)
@@ -58,17 +56,4 @@ func RunServer() {
 	if err := s.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
 		log.Error("could not stop server", "error", err)
 	}
-}
-
-func teaHandler(s ssh.Session) (tea.Model, []tea.ProgramOption) {
-	pty, _, active := s.Pty()
-
-	if !active {
-		wish.Fatalln(s, "l + ratio, no active terminal")
-		return nil, nil
-	}
-
-	ui := ui.New(pty.Window.Width, pty.Window.Height)
-
-	return ui, []tea.ProgramOption{tea.WithAltScreen()}
 }
