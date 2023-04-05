@@ -1,32 +1,27 @@
 package life
 
-// change to int or struct for customization
-type Life bool
-
-func NewBoard(width, height int) [][]Life {
-	board := make([][]Life, height)
+func NewBoard(width, height int) [][]bool {
+	board := make([][]bool, height)
 	for i := range board {
-		board[i] = make([]Life, width)
+		board[i] = make([]bool, width)
 	}
-
 	return board
 }
 
-func NextBoard(board [][]Life) [][]Life {
-
-	boardWidth := len(board[0])
+func NextBoard(board [][]bool) [][]bool {
 	boardHeight := len(board)
+	boardWidth := len(board[0])
 
 	newBoard := NewBoard(boardWidth, boardHeight)
 
 	for y := range board {
-		for x := range board[y] {
+		for x, alive := range board[y] {
 
 			neighbors := 0
 
 			for dy := -1; dy <= 1; dy++ {
 				for dx := -1; dx <= 1; dx++ {
-					if dx == 0 && dy == 0 {
+					if dy == 0 && dx == 0 {
 						continue
 					}
 
@@ -39,14 +34,14 @@ func NextBoard(board [][]Life) [][]Life {
 				}
 			}
 
-			if !board[y][x] && neighbors == 3 {
+			if alive && (neighbors == 2 || neighbors == 3) {
+				newBoard[y][x] = true
+			} else if !alive && neighbors == 3 {
 				newBoard[y][x] = true
 			}
-			if board[y][x] && (neighbors == 2 || neighbors == 3) {
-				newBoard[y][x] = true
-			}
-		}
 
+		}
 	}
+
 	return newBoard
 }

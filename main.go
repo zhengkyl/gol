@@ -1,14 +1,17 @@
 package main
 
-import "github.com/zhengkyl/gol/server"
+import (
+	"fmt"
+	"gol/ui"
+	"os"
+
+	tea "github.com/charmbracelet/bubbletea"
+)
 
 func main() {
-	server.RunServer()
-
-	// uncomment to run ui without server
-	// p := tea.NewProgram(ui.New(0, 0), tea.WithAltScreen())
-	// if _, err := p.Run(); err != nil {
-	// 	fmt.Printf("L + R, fix your code: %v", err)
-	// 	os.Exit(1)
-	// }
+	p := tea.NewProgram(ui.New(50, 25), tea.WithAltScreen())
+	if _, err := p.Run(); err != nil {
+		fmt.Printf("L + R, fix your code: %v", err)
+		os.Exit(1)
+	}
 }

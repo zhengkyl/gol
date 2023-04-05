@@ -1,33 +1,28 @@
 package ui
 
 import (
+	"gol/life"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/zhengkyl/gol/ui/life"
 )
 
-type Model struct {
+type model struct {
 	boardWidth  int
 	boardHeight int
-	board       [][]life.Life
+	board       [][]bool
 	posX        int
 	posY        int
 	paused      bool
 }
 
-var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("201"))
-var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color("0"))
-
-func New(width, height int) Model {
-	boardWidth := (width / 2)
-
-	// space for mode
+func New(width, height int) model {
+	boardWidth := width / 2
 	boardHeight := height - 1
 
-	return Model{
+	return model{
 		boardWidth:  boardWidth,
 		boardHeight: boardHeight,
 		board:       life.NewBoard(boardWidth, boardHeight),
@@ -37,28 +32,21 @@ func New(width, height int) Model {
 	}
 }
 
-func (m Model) Init() tea.Cmd {
+type tickMsg struct{}
+
+var tickOnce = tea.Tick(time.Second/5, func(t time.Time) tea.Msg {
+	return tickMsg{}
+})
+
+func (m model) Init() tea.Cmd {
 	return nil
 }
 
-func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmds []tea.Cmd
+func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.paused = true
-
-		m.boardWidth = msg.Width / 2
-		m.boardHeight = msg.Height - 1
-
-		m.board = life.NewBoard(m.boardWidth, m.boardHeight)
-
-	case TickMsg:
-		if !m.paused {
-			cmds = append(cmds, tickOnce())
-
-			m.board = life.NextBoard(m.board)
-		}
+		return New(msg.Width, msg.Height), nil
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -77,28 +65,39 @@ func (m Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case "enter":
 			m.paused = !m.paused
 			if !m.paused {
-				cmds = append(cmds, tickOnce())
+				return m, tickOnce
 			}
+		}
+
+	case tickMsg:
+		if !m.paused {
+			m.board = life.NextBoard(m.board)
+			return m, tickOnce
 		}
 	}
 
-	return m, tea.Batch(cmds...)
+	return m, nil
 }
 
-func (m Model) View() string {
+var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color("0"))
+var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("227"))
+
+func (m model) View() string {
+
 	var lines []string
 
 	for y := range m.board {
 		line := ""
 		for x, alive := range m.board[y] {
+
+			pixel := "  "
+			if y == m.posY && x == m.posX {
+				pixel = "[]"
+			}
+
 			style := deadStyle
 			if alive {
 				style = aliveStyle
-			}
-
-			pixel := "  "
-			if m.paused && y == m.posY && x == m.posX {
-				pixel = "[]"
 			}
 
 			line += style.Render(pixel)
@@ -107,20 +106,11 @@ func (m Model) View() string {
 		lines = append(lines, line)
 	}
 
-	mode := "Playing"
+	status := "Playing"
 	if m.paused {
-		mode = "Paused"
+		status = "Paused"
 	}
-	lines = append(lines, mode)
+	lines = append(lines, status)
 
 	return strings.Join(lines, "\n")
-}
-
-type TickMsg struct{}
-
-func tickOnce() tea.Cmd {
-
-	return tea.Tick(time.Second/5, func(t time.Time) tea.Msg {
-		return TickMsg{}
-	})
 }
