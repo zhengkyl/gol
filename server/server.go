@@ -9,11 +9,13 @@ import (
 	"syscall"
 	"time"
 
+	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
-
 	lm "github.com/charmbracelet/wish/logging"
+	"github.com/zhengkyl/gol/server/middleware"
+	"github.com/zhengkyl/gol/ui"
 )
 
 const (
@@ -56,4 +58,19 @@ func RunServer() {
 	if err := s.Shutdown(ctx); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
 		log.Error("could not stop server", "error", err)
 	}
+}
+
+func teaHandler(s ssh.Session, game middleware.Game) *tea.Program {
+	pty, _, active := s.Pty()
+
+	if !active {
+		wish.Fatalln(s, "l + ratio, no active terminal")
+		return nil
+	}
+
+	ui := ui.New(pty.Window.Width, pty.Window.Height, game)
+
+	p := tea.NewProgram(ui, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
+
+	return p
 }

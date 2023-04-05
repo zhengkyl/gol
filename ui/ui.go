@@ -7,21 +7,24 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
+	"github.com/zhengkyl/gol/server/middleware"
 	"github.com/zhengkyl/gol/ui/keybinds"
 	"github.com/zhengkyl/gol/ui/life"
 )
 
 type model struct {
-	boardWidth  int
-	boardHeight int
-	board       [][]life.Cell
-	posX        int
-	posY        int
-	paused      bool
+	// boardWidth  int
+	// boardHeight int
+	// board       [][]life.Cell
+	// posX        int
+	// posY        int
+	// paused      bool
 }
 
 var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("227"))
 var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color("0"))
+
+type RenderMsg struct{}
 
 type TickMsg struct{}
 
@@ -32,7 +35,7 @@ func tickOnce() tea.Cmd {
 	})
 }
 
-func New(width, height int) model {
+func New(width, height int, game middleware.Game) model {
 	boardWidth := (width / 2)
 
 	// space for mode
