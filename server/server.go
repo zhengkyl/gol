@@ -16,7 +16,7 @@ import (
 	bm "github.com/charmbracelet/wish/bubbletea"
 	lm "github.com/charmbracelet/wish/logging"
 	"github.com/muesli/termenv"
-	"github.com/zhengkyl/gol/server/middleware"
+	"github.com/zhengkyl/gol/server/game"
 	"github.com/zhengkyl/gol/ui"
 )
 
@@ -27,13 +27,13 @@ const (
 
 func RunServer() {
 
-	game := middleware.NewGame()
+	game := game.NewGame()
 
 	s, err := wish.NewServer(
 		wish.WithAddress(fmt.Sprintf("%s:%d", host, port)),
 		wish.WithHostKeyPath(".ssh/server_ed25519"),
 		wish.WithMiddleware(
-			middleware.GameMiddleware(teaHandler(game), termenv.ANSI256),
+			bm.MiddlewareWithProgramHandler(teaHandler(game), termenv.ANSI256),
 			// bm.Middleware(teaHandler),
 			lm.Middleware(),
 		),
@@ -49,6 +49,7 @@ func RunServer() {
 	log.Info("Starting SSH server", "host", host, "port", port)
 
 	go func() {
+		game.Run()
 		if err = s.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
 			log.Error("could not start server", "error", err)
 		}
@@ -65,7 +66,7 @@ func RunServer() {
 	}
 }
 
-func teaHandler(game *middleware.Game) bm.ProgramHandler {
+func teaHandler(g *game.Game) bm.ProgramHandler {
 	return func(s ssh.Session) *tea.Program {
 		pty, _, active := s.Pty()
 
@@ -74,13 +75,13 @@ func teaHandler(game *middleware.Game) bm.ProgramHandler {
 			return nil
 		}
 
-		cs := &middleware.ClientState{}
+		cs := &game.ClientState{}
 
-		ui := ui.New(pty.Window.Width, pty.Window.Height, cs, game)
+		ui := ui.New(pty.Window.Width, pty.Window.Height, cs, g)
 
 		p := tea.NewProgram(ui, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
 
-		game.Join(p, cs)
+		g.Join(p, cs)
 
 		return p
 	}

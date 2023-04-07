@@ -6,13 +6,13 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/zhengkyl/gol/server/middleware"
+	"github.com/zhengkyl/gol/server/game"
 	"github.com/zhengkyl/gol/ui/keybinds"
 )
 
 type model struct {
-	clientState    *middleware.ClientState
-	game           *middleware.Game
+	clientState    *game.ClientState
+	game           *game.Game
 	boardWidth     int
 	boardHeight    int
 	viewportWidth  int
@@ -37,7 +37,7 @@ func tickOnce() tea.Cmd {
 	})
 }
 
-func New(width, height int, cs *middleware.ClientState, g *middleware.Game) model {
+func New(width, height int, cs *game.ClientState, g *game.Game) model {
 	boardWidth, boardHeight := g.BoardSize()
 
 	return model{
@@ -93,7 +93,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keybinds.KeyBinds.Right):
 			m.clientState.PosX = (m.clientState.PosX + 1 + m.boardWidth) % m.boardWidth
 		case key.Matches(msg, keybinds.KeyBinds.Place):
-
+			m.game.Place(m.clientState)
 		case key.Matches(msg, keybinds.KeyBinds.Pause):
 			m.clientState.Paused = !m.clientState.Paused
 		}

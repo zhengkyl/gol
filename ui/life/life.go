@@ -22,8 +22,6 @@ func NewBoard(width, height int) [][]Cell {
 	return board
 }
 
-// 0 1 2 3     4 5 6 7     8
-// 0 1 2 3 --- 0 1 2 3 --- 0
 func NextBoard(board [][]Cell) [][]Cell {
 
 	boardWidth := len(board[0])
@@ -31,11 +29,14 @@ func NextBoard(board [][]Cell) [][]Cell {
 
 	newBoard := NewBoard(boardWidth, boardHeight)
 
+	neighbors := map[int]int{}
+
 	for y := range board {
 		for x := range board[y] {
 
-			var neighbors uint64 = 0
-
+			numNeighbors := 0
+			mostColor := 0
+			mostNeighbors := 0
 			for dy := -1; dy <= 1; dy++ {
 				for dx := -1; dx <= 1; dx++ {
 					if dx == 0 && dy == 0 {
@@ -46,16 +47,21 @@ func NextBoard(board [][]Cell) [][]Cell {
 					nx := (x + dx + boardWidth) % boardWidth
 
 					if board[ny][nx].IsAlive() {
-						neighbors++
+						neighbors[board[ny][nx].Color]++
+						numNeighbors++
+
+						if neighbors[board[ny][nx].Color] > mostNeighbors {
+							mostColor = board[ny][nx].Color
+						}
 					}
 				}
 			}
 
-			if !board[y][x].IsAlive() && neighbors == 3 {
-				newBoard[y][x].Color = 1
+			if !board[y][x].IsAlive() && numNeighbors == 3 {
+				newBoard[y][x].Color = mostColor
 			}
-			if board[y][x].IsAlive() && (neighbors == 2 || neighbors == 3) {
-				newBoard[y][x].Color = 1
+			if board[y][x].IsAlive() && (numNeighbors == 2 || numNeighbors == 3) {
+				newBoard[y][x].Color = mostColor
 			}
 		}
 

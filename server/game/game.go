@@ -1,17 +1,13 @@
-package middleware
+package game
 
 import (
 	"math/rand"
+	"sort"
 	"strings"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/charmbracelet/log"
-	"github.com/charmbracelet/ssh"
-	"github.com/charmbracelet/wish"
-	bm "github.com/charmbracelet/wish/bubbletea"
-	"github.com/muesli/termenv"
 	"github.com/zhengkyl/gol/ui/life"
 )
 
@@ -33,6 +29,58 @@ type Game struct {
 	buffer       string
 	players      int
 	ticker       *time.Ticker
+}
+
+type playerColor struct {
+	cursor string
+	cell   string
+}
+
+var ColorTable = [11]playerColor{
+	{
+		"#080808",
+		"0",
+	},
+	{
+		"#ff0000",
+		"#ff5f5f",
+	},
+	{
+		"#d75f00",
+		"#ff8700",
+	},
+	{
+		"#ffd700",
+		"#ffff5f",
+	},
+	{
+		"#87af00",
+		"#afff00",
+	},
+	{
+		"#005f00",
+		"#00d700",
+	},
+	{
+		"#00afff",
+		"#00ffff",
+	},
+	{
+		"#005f87",
+		"#0087ff",
+	},
+	{
+		"#d700ff",
+		"#d787ff",
+	},
+	{
+		"#ff00af",
+		"#ff5faf",
+	},
+	{
+		"#afafd7",
+		"#eeeeee",
+	},
 }
 
 const tickRate = 60
@@ -88,9 +136,6 @@ func (g *Game) Join(p *tea.Program, cs *ClientState) {
 	cs.Color = g.players
 	g.clients[p] = cs
 
-	// TODO testing only!! should only run once
-	g.Run()
-
 }
 
 func (g *Game) Leave(p *tea.Program) {
@@ -112,36 +157,43 @@ func (g *Game) BoardSize() (int, int) {
 
 type ServerRedrawMsg struct{}
 
-// type byPos []*ClientState
+type byPos []*ClientState
 
-// func (s byPos) Len() int {
-// 	return len(s)
-// }
-// func (s byPos) Swap(i, j int) {
-// 	s[i], s[j] = s[j], s[i]
-// }
-// func (s byPos) Less(i, j int) bool {
-// 	if s[i].PosX < s[j].PosX {
-// 		return true
-// 	}
-// 	return s[i].PosY < s[j].PosY
-// }
+func (s byPos) Len() int {
+	return len(s)
+}
+func (s byPos) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s byPos) Less(i, j int) bool {
+	if s[i].PosX < s[j].PosX {
+		return true
+	}
+	return s[i].PosY < s[j].PosY
+}
 
-var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("227"))
-var cornerStyle = lipgloss.NewStyle().Background(lipgloss.Color("69"))
-var bornerStyle = lipgloss.NewStyle().Background(lipgloss.Color("200"))
-var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color("0"))
+// var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("227"))
+var cornerStyle = lipgloss.NewStyle().Background(lipgloss.Color(ColorTable[0].cursor))
+var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color(ColorTable[0].cell))
 
 // var aliveWidth = len(aliveStyle.Render(pixel))
 
 func (g *Game) UpdateBoard() {
-	g.board = life.NextBoard(g.board)
 
-	// var clients []*ClientState
-	// for _, cs := range g.clients {
-	// 	clients = append(clients, cs)
-	// }
-	// sort.Sort(byPos(clients))
+	notPaused := true
+
+	var clients []*ClientState
+	for _, cs := range g.clients {
+		clients = append(clients, cs)
+		if cs.Paused {
+			notPaused = false
+		}
+	}
+	sort.Sort(byPos(clients))
+
+	if notPaused {
+		g.board = life.NextBoard(g.board)
+	}
 
 	sb := strings.Builder{}
 
@@ -150,22 +202,17 @@ func (g *Game) UpdateBoard() {
 		for x, cell := range row {
 			style := deadStyle
 			if cell.IsAlive() {
-				style = aliveStyle
+				// style = lipgloss.NewStyle().Background(lipgloss.Color(strconv.Itoa(cell.Color)))
+				style = lipgloss.NewStyle().Background(lipgloss.Color(ColorTable[cell.Color].cell))
 			} else if y == 0 && x == 0 {
 				style = cornerStyle
-			} else if y == len(g.board)-1 && x == len(row)-1 {
-				style = cornerStyle
-			} else if y == 0 && x == len(row)-1 {
-				style = bornerStyle
-			} else if y == len(g.board)-1 && x == 0 {
-				style = bornerStyle
 			}
-
 			var pixel = "  "
 
-			for _, cs := range g.clients {
+			for _, cs := range clients {
 				if y == cs.PosY && x == cs.PosX {
 					pixel = "[]"
+					style = style.Copy().Foreground(lipgloss.Color(ColorTable[cs.Color].cursor))
 				}
 			}
 
@@ -194,12 +241,13 @@ func (g *Game) ViewBoard(top, left, width, height int) string {
 		boundXStart := (left + boardWidth) % boardWidth
 		boundXEndIncl := (left + width - 1 + boardWidth) % boardWidth
 
+		// if width % boardWidth == 0 -> special case
 		repeats := (width - 1) / boardWidth
 
 		wrap := boundXStart > boundXEndIncl || repeats > 0
 
 		// remove 1 when repeat is discontinuous
-		if boundXStart <= (boundXEndIncl+1) && repeats > 0 {
+		if boundXStart <= boundXEndIncl && repeats > 0 {
 			repeats--
 		}
 
@@ -235,38 +283,10 @@ func (g *Game) Update(delta time.Duration) {
 
 }
 
-// https://github.com/charmbracelet/wish/blob/main/bubbletea/tea.go
-func GameMiddleware(bth bm.ProgramHandler, cp termenv.Profile) wish.Middleware {
-	return func(sh ssh.Handler) ssh.Handler {
-		lipgloss.SetColorProfile(cp)
-
-		return func(s ssh.Session) {
-			p := bth(s)
-
-			if p != nil {
-				_, windowChanges, _ := s.Pty()
-
-				go func() {
-					for {
-						select {
-						case <-s.Context().Done():
-							if p != nil {
-								p.Quit()
-								return
-							}
-						case w := <-windowChanges:
-							if p != nil {
-								p.Send(tea.WindowSizeMsg{Width: w.Width, Height: w.Height})
-							}
-						}
-					}
-				}()
-
-				if _, err := p.Run(); err != nil {
-					log.Error("client exit with error", "error", err)
-				}
-			}
-			sh(s)
-		}
+func (g *Game) Place(cs *ClientState) {
+	if !g.board[cs.PosY][cs.PosX].IsAlive() {
+		g.board[cs.PosY][cs.PosX].Color = cs.Color
+	} else if g.board[cs.PosY][cs.PosX].Color == cs.Color {
+		g.board[cs.PosY][cs.PosX].Color = 0
 	}
 }
