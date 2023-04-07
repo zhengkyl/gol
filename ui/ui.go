@@ -107,6 +107,7 @@ func (m model) View() string {
 	sb := strings.Builder{}
 
 	sb.WriteString(m.game.ViewBoard(0, 0, m.viewportWidth, m.viewportHeight))
+	// sb.WriteString(m.game.ViewBoard(0, 0, 21, 21))
 	sb.WriteString("\n")
 
 	help := "wasd/move - <space>/place - <enter>/pause"

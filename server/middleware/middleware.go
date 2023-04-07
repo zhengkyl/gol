@@ -36,12 +36,12 @@ type Game struct {
 }
 
 const tickRate = 60
-const drawRate = 5
+const drawRate = 10
 const ticksPerDraw = tickRate / drawRate
 
 func NewGame() *Game {
 
-	w, h := 200, 200
+	w, h := 20, 20
 	lookup := make([][]pixelLookup, h)
 	for y := range lookup {
 		lookup[y] = make([]pixelLookup, w)
@@ -129,6 +129,7 @@ type ServerRedrawMsg struct{}
 
 var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("227"))
 var cornerStyle = lipgloss.NewStyle().Background(lipgloss.Color("69"))
+var bornerStyle = lipgloss.NewStyle().Background(lipgloss.Color("200"))
 var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color("0"))
 
 // var aliveWidth = len(aliveStyle.Render(pixel))
@@ -144,8 +145,6 @@ func (g *Game) UpdateBoard() {
 
 	sb := strings.Builder{}
 
-	bytePos := 0
-
 	for y, row := range g.board {
 		// line := ""
 		for x, cell := range row {
@@ -156,6 +155,10 @@ func (g *Game) UpdateBoard() {
 				style = cornerStyle
 			} else if y == len(g.board)-1 && x == len(row)-1 {
 				style = cornerStyle
+			} else if y == 0 && x == len(row)-1 {
+				style = bornerStyle
+			} else if y == len(g.board)-1 && x == 0 {
+				style = bornerStyle
 			}
 
 			var pixel = "  "
@@ -166,13 +169,9 @@ func (g *Game) UpdateBoard() {
 				}
 			}
 
-			g.bufferLookup[y][x].start = bytePos
-
+			g.bufferLookup[y][x].start = sb.Len()
 			sb.WriteString(style.Render(pixel))
-			bytePos := sb.Len()
-
-			g.bufferLookup[y][x].end = bytePos
-			// line += style.Render(pixel)
+			g.bufferLookup[y][x].end = sb.Len()
 		}
 		sb.WriteString("\n")
 	}
@@ -195,30 +194,29 @@ func (g *Game) ViewBoard(top, left, width, height int) string {
 		boundXStart := (left + boardWidth) % boardWidth
 		boundXEndIncl := (left + width - 1 + boardWidth) % boardWidth
 
-		repeats := width / boardWidth
+		repeats := (width - 1) / boardWidth
 
-		// boundXStart == boundXEndIncl+1 IMPLIES repeats > 0 (at least 1)
-		// ALL other cases are inconclusive, either repeats == 0 or repeats > 0
-		wrap := boundXStart > (boundXEndIncl+1) || repeats > 0
+		wrap := boundXStart > boundXEndIncl || repeats > 0
 
 		// remove 1 when repeat is discontinuous
-		if boundXStart <= (boundXEndIncl + 1) {
+		if boundXStart <= (boundXEndIncl+1) && repeats > 0 {
 			repeats--
 		}
 
 		if wrap {
+
 			start := g.bufferLookup[boundY][boundXStart].start
 			end := g.bufferLookup[boundY][boardWidth-1].end
 			sb.WriteString(g.buffer[start:end])
 
-			for i := 0; i < repeats; i++ {
-				start := g.bufferLookup[boundY][0].start
-				end := g.bufferLookup[boundY][boardWidth-1].end
-				sb.WriteString(g.buffer[start:end])
+			if repeats > 0 {
+				start = g.bufferLookup[boundY][0].start
+				end = g.bufferLookup[boundY][boardWidth-1].end
+				sb.WriteString(strings.Repeat(g.buffer[start:end], repeats))
 			}
 
 			start = g.bufferLookup[boundY][0].start
-			end = g.bufferLookup[boundY][boundXEndIncl].start
+			end = g.bufferLookup[boundY][boundXEndIncl].end
 			sb.WriteString(g.buffer[start:end])
 
 		} else {
