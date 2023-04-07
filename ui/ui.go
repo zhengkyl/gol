@@ -6,23 +6,25 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
-	"github.com/charmbracelet/lipgloss"
 	"github.com/zhengkyl/gol/server/middleware"
 	"github.com/zhengkyl/gol/ui/keybinds"
-	"github.com/zhengkyl/gol/ui/life"
 )
 
 type model struct {
-	// boardWidth  int
-	// boardHeight int
+	clientState    *middleware.ClientState
+	game           *middleware.Game
+	boardWidth     int
+	boardHeight    int
+	viewportWidth  int
+	viewportHeight int
 	// board       [][]life.Cell
-	// posX        int
-	// posY        int
+	// clientState.PosX        int
+	// clientState.PosY        int
 	// paused      bool
 }
 
-var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("227"))
-var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color("0"))
+// var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("227"))
+// var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color("0"))
 
 type RenderMsg struct{}
 
@@ -35,19 +37,20 @@ func tickOnce() tea.Cmd {
 	})
 }
 
-func New(width, height int, game middleware.Game) model {
-	boardWidth := (width / 2)
-
-	// space for mode
-	boardHeight := height - 1
+func New(width, height int, cs *middleware.ClientState, g *middleware.Game) model {
+	boardWidth, boardHeight := g.BoardSize()
 
 	return model{
-		boardWidth:  boardWidth,
-		boardHeight: boardHeight,
-		board:       life.NewBoard(boardWidth, boardHeight),
-		posX:        boardWidth / 2,
-		posY:        boardHeight / 2,
-		paused:      true,
+		clientState:    cs,
+		game:           g,
+		boardWidth:     boardWidth,
+		boardHeight:    boardHeight,
+		viewportWidth:  width / 2,
+		viewportHeight: height - 1,
+		// board:       life.NewBoard(boardWidth, boardHeight),
+		// clientState.PosX:        boardWidth / 2,
+		// clientState.PosY:        boardHeight / 2,
+		// paused:      true,
 	}
 }
 
@@ -55,48 +58,44 @@ func (m model) Init() tea.Cmd {
 	return nil
 }
 
+func mod(dividend, divisor int) int {
+	return (dividend + divisor) % divisor
+}
+
 func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		m.paused = true
 
-		m.boardWidth = msg.Width / 2
-		m.boardHeight = msg.Height - 1
+		m.viewportWidth = msg.Width / 2
+		m.viewportHeight = msg.Height - 1
 
-		m.board = life.NewBoard(m.boardWidth, m.boardHeight)
+		m.clientState.Paused = true
 
-	case TickMsg:
-		if !m.paused {
-			cmds = append(cmds, tickOnce())
+	// case TickMsg:
+	// 	if !m.clientState.Paused {
+	// 		// cmds = append(cmds, tickOnce())
 
-			m.board = life.NextBoard(m.board)
-		}
+	// 		// m.board = life.NextBoard(m.board)
+	// 	}
 
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, keybinds.KeyBinds.Quit):
 			return m, tea.Quit
 		case key.Matches(msg, keybinds.KeyBinds.Up):
-			m.posY = (m.posY - 1 + m.boardHeight) % m.boardHeight
+			m.clientState.PosY = mod(m.clientState.PosY-1, m.boardHeight)
 		case key.Matches(msg, keybinds.KeyBinds.Left):
-			m.posX = (m.posX - 1 + m.boardWidth) % m.boardWidth
+			m.clientState.PosX = (m.clientState.PosX - 1 + m.boardWidth) % m.boardWidth
 		case key.Matches(msg, keybinds.KeyBinds.Down):
-			m.posY = (m.posY + 1 + m.boardHeight) % m.boardHeight
+			m.clientState.PosY = (m.clientState.PosY + 1 + m.boardHeight) % m.boardHeight
 		case key.Matches(msg, keybinds.KeyBinds.Right):
-			m.posX = (m.posX + 1 + m.boardWidth) % m.boardWidth
+			m.clientState.PosX = (m.clientState.PosX + 1 + m.boardWidth) % m.boardWidth
 		case key.Matches(msg, keybinds.KeyBinds.Place):
-			if m.board[m.posY][m.posX].IsAlive() {
-				m.board[m.posY][m.posX].Color = 1
-			} else {
-				m.board[m.posY][m.posX].Color = 0
-			}
+
 		case key.Matches(msg, keybinds.KeyBinds.Pause):
-			m.paused = !m.paused
-			if !m.paused {
-				cmds = append(cmds, tickOnce())
-			}
+			m.clientState.Paused = !m.clientState.Paused
 		}
 	}
 
@@ -104,36 +103,21 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m model) View() string {
-	var lines []string
 
-	for y := range m.board {
-		line := ""
-		for x, cell := range m.board[y] {
-			style := deadStyle
-			if cell.IsAlive() {
-				style = aliveStyle
-			}
+	sb := strings.Builder{}
 
-			pixel := "  "
-			if m.paused && y == m.posY && x == m.posX {
-				pixel = "[]"
-			}
-
-			line += style.Render(pixel)
-		}
-
-		lines = append(lines, line)
-	}
+	sb.WriteString(m.game.ViewBoard(0, 0, m.viewportWidth, m.viewportHeight))
+	sb.WriteString("\n")
 
 	help := "wasd/move - <space>/place - <enter>/pause"
 
 	mode := "Playing    "
-	if m.paused {
+	if m.clientState.Paused {
 		mode = "Paused     "
 	}
 
 	mode += help
-	lines = append(lines, mode)
+	sb.WriteString(help)
 
-	return strings.Join(lines, "\n")
+	return sb.String()
 }
