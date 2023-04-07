@@ -2,8 +2,8 @@ package game
 
 import (
 	"math/rand"
-	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -17,75 +17,81 @@ type ClientState struct {
 	// Pos    Coord
 	Paused bool
 	Color  int
+	Placed int
+	Cells  int
 }
 type pixelLookup struct {
 	start int
 	end   int
 }
+
+type GameState int
+
+const (
+	PAUSED GameState = iota
+	PLAYING
+)
+
 type Game struct {
-	clients      map[*tea.Program]*ClientState
-	board        [][]life.Cell
-	bufferLookup [][]pixelLookup
-	buffer       string
-	players      int
-	ticker       *time.Ticker
+	clients           PlayerMap
+	board             [][]life.Cell
+	boardBufferLookup [][]pixelLookup
+	boardBuffer       string
+	// players           int
+	paused int
+	ticker *time.Ticker
+	state  GameState
 }
 
-type playerColor struct {
-	cursor string
-	cell   string
+type PlayerMap struct {
+	mu sync.Mutex
+	v  map[*tea.Program]*ClientState
 }
 
-var ColorTable = [11]playerColor{
-	{
-		"#080808",
-		"0",
-	},
-	{
-		"#ff0000",
-		"#ff5f5f",
-	},
-	{
-		"#d75f00",
-		"#ff8700",
-	},
-	{
-		"#ffd700",
-		"#ffff5f",
-	},
-	{
-		"#87af00",
-		"#afff00",
-	},
-	{
-		"#005f00",
-		"#00d700",
-	},
-	{
-		"#00afff",
-		"#00ffff",
-	},
-	{
-		"#005f87",
-		"#0087ff",
-	},
-	{
-		"#d700ff",
-		"#d787ff",
-	},
-	{
-		"#ff00af",
-		"#ff5faf",
-	},
-	{
-		"#afafd7",
-		"#eeeeee",
-	},
+func (m *PlayerMap) Set(p *tea.Program, cs *ClientState) {
+	m.mu.Lock()
+	m.v[p] = cs
+	m.mu.Unlock()
 }
 
-const tickRate = 60
+func (m *PlayerMap) Delete(p *tea.Program) {
+	m.mu.Lock()
+	delete(m.v, p)
+	m.mu.Unlock()
+}
+
+func (m *PlayerMap) Len() int {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	return len(m.v)
+}
+
+func (m *PlayerMap) Entries() ([]*tea.Program, []*ClientState) {
+	m.mu.Lock()
+	defer m.mu.Unlock()
+	keys := make([]*tea.Program, 0, len(m.v))
+	vals := make([]*ClientState, 0, len(m.v))
+	for p, cs := range m.v {
+		keys = append(keys, p)
+		vals = append(vals, cs)
+	}
+
+	return keys, vals
+}
+
+const MaxPlayers = 10
+const MaxPlacedCells = 10
 const drawRate = 10
-const ticksPerDraw = tickRate / drawRate
+const generationRate = 5
+const drawsPerGeneration = drawRate / generationRate
+
+func (g *Game) Players() int {
+	return g.clients.Len()
+}
+
+func (g *Game) PausedPlayers() int {
+	return g.paused
+}
 
 func NewGame() *Game {
 
@@ -96,11 +102,13 @@ func NewGame() *Game {
 	}
 
 	return &Game{
-		clients:      make(map[*tea.Program]*ClientState),
-		board:        life.NewBoard(w, h),
-		bufferLookup: lookup,
-		players:      0,
-		ticker:       time.NewTicker(time.Second / tickRate),
+		clients:           PlayerMap{v: make(map[*tea.Program]*ClientState)},
+		board:             life.NewBoard(w, h),
+		boardBufferLookup: lookup,
+		// players:           0,
+		paused: 0,
+		ticker: time.NewTicker(time.Second / drawRate),
+		state:  PAUSED,
 	}
 }
 
@@ -113,7 +121,7 @@ func (g *Game) Run() {
 		for now := range g.ticker.C {
 			iteration++
 
-			if iteration == ticksPerDraw {
+			if iteration == drawsPerGeneration {
 				iteration = 0
 				g.UpdateBoard()
 			}
@@ -125,22 +133,25 @@ func (g *Game) Run() {
 	}()
 }
 
-func (g *Game) Join(p *tea.Program, cs *ClientState) {
+func (g *Game) Join(p *tea.Program, cs *ClientState) bool {
+	if g.clients.Len() == MaxPlayers {
+		return false
+	}
+
 	posX := rand.Intn(len(g.board))
 	posY := rand.Intn(len(g.board))
-	g.players++
 
 	cs.PosX = posX
 	cs.PosY = posY
 	cs.Paused = true
-	cs.Color = g.players
-	g.clients[p] = cs
+	cs.Color = g.clients.Len() + 1
+	g.clients.Set(p, cs)
 
+	return true
 }
 
 func (g *Game) Leave(p *tea.Program) {
-	delete(g.clients, p)
-	g.players--
+	g.clients.Delete(p)
 }
 
 func (g *Game) Unpause() {
@@ -157,42 +168,47 @@ func (g *Game) BoardSize() (int, int) {
 
 type ServerRedrawMsg struct{}
 
-type byPos []*ClientState
+// type byPos []*ClientState
 
-func (s byPos) Len() int {
-	return len(s)
-}
-func (s byPos) Swap(i, j int) {
-	s[i], s[j] = s[j], s[i]
-}
-func (s byPos) Less(i, j int) bool {
-	if s[i].PosX < s[j].PosX {
-		return true
-	}
-	return s[i].PosY < s[j].PosY
-}
+// func (s byPos) Len() int {
+// 	return len(s)
+// }
+// func (s byPos) Swap(i, j int) {
+// 	s[i], s[j] = s[j], s[i]
+// }
+// func (s byPos) Less(i, j int) bool {
+// 	if s[i].PosX < s[j].PosX {
+// 		return true
+// 	}
+// 	return s[i].PosY < s[j].PosY
+// }
 
-// var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("227"))
-var cornerStyle = lipgloss.NewStyle().Background(lipgloss.Color(ColorTable[0].cursor))
 var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color(ColorTable[0].cell))
-
-// var aliveWidth = len(aliveStyle.Render(pixel))
 
 func (g *Game) UpdateBoard() {
 
-	notPaused := true
+	if g.state != PLAYING {
+		return
+	}
 
-	var clients []*ClientState
-	for _, cs := range g.clients {
-		clients = append(clients, cs)
+	g.board = life.NextBoard(g.board)
+}
+
+func (g *Game) Update(delta time.Duration) {
+	g.paused = 0
+
+	ps, css := g.clients.Entries()
+
+	for _, cs := range css {
 		if cs.Paused {
-			notPaused = false
+			g.paused++
 		}
 	}
-	sort.Sort(byPos(clients))
 
-	if notPaused {
-		g.board = life.NextBoard(g.board)
+	if g.paused > len(ps)/2 {
+		g.state = PAUSED
+	} else {
+		g.state = PLAYING
 	}
 
 	sb := strings.Builder{}
@@ -202,29 +218,32 @@ func (g *Game) UpdateBoard() {
 		for x, cell := range row {
 			style := deadStyle
 			if cell.IsAlive() {
-				// style = lipgloss.NewStyle().Background(lipgloss.Color(strconv.Itoa(cell.Color)))
 				style = lipgloss.NewStyle().Background(lipgloss.Color(ColorTable[cell.Color].cell))
-			} else if y == 0 && x == 0 {
-				style = cornerStyle
+				// store user id so can access them?
 			}
-			var pixel = "  "
 
-			for _, cs := range clients {
+			var pixel = "  "
+			if y == 0 && x == 0 {
+				// Keep track of tiling
+				pixel = "::"
+			}
+
+			for _, cs := range css {
 				if y == cs.PosY && x == cs.PosX {
 					pixel = "[]"
 					style = style.Copy().Foreground(lipgloss.Color(ColorTable[cs.Color].cursor))
 				}
 			}
 
-			g.bufferLookup[y][x].start = sb.Len()
+			g.boardBufferLookup[y][x].start = sb.Len()
 			sb.WriteString(style.Render(pixel))
-			g.bufferLookup[y][x].end = sb.Len()
+			g.boardBufferLookup[y][x].end = sb.Len()
 		}
 		sb.WriteString("\n")
 	}
-	g.buffer = sb.String()[:sb.Len()-1]
+	g.boardBuffer = sb.String()[:sb.Len()-1]
 
-	for p := range g.clients {
+	for _, p := range ps {
 		p.Send(ServerRedrawMsg{})
 	}
 }
@@ -253,24 +272,24 @@ func (g *Game) ViewBoard(top, left, width, height int) string {
 
 		if wrap {
 
-			start := g.bufferLookup[boundY][boundXStart].start
-			end := g.bufferLookup[boundY][boardWidth-1].end
-			sb.WriteString(g.buffer[start:end])
+			start := g.boardBufferLookup[boundY][boundXStart].start
+			end := g.boardBufferLookup[boundY][boardWidth-1].end
+			sb.WriteString(g.boardBuffer[start:end])
 
 			if repeats > 0 {
-				start = g.bufferLookup[boundY][0].start
-				end = g.bufferLookup[boundY][boardWidth-1].end
-				sb.WriteString(strings.Repeat(g.buffer[start:end], repeats))
+				start = g.boardBufferLookup[boundY][0].start
+				end = g.boardBufferLookup[boundY][boardWidth-1].end
+				sb.WriteString(strings.Repeat(g.boardBuffer[start:end], repeats))
 			}
 
-			start = g.bufferLookup[boundY][0].start
-			end = g.bufferLookup[boundY][boundXEndIncl].end
-			sb.WriteString(g.buffer[start:end])
+			start = g.boardBufferLookup[boundY][0].start
+			end = g.boardBufferLookup[boundY][boundXEndIncl].end
+			sb.WriteString(g.boardBuffer[start:end])
 
 		} else {
-			start := g.bufferLookup[boundY][boundXStart].start
-			end := g.bufferLookup[boundY][boundXEndIncl].end
-			sb.WriteString(g.buffer[start:end])
+			start := g.boardBufferLookup[boundY][boundXStart].start
+			end := g.boardBufferLookup[boundY][boundXEndIncl].end
+			sb.WriteString(g.boardBuffer[start:end])
 		}
 
 		sb.WriteString("\n")
@@ -279,14 +298,16 @@ func (g *Game) ViewBoard(top, left, width, height int) string {
 	return sb.String()[:sb.Len()-1]
 }
 
-func (g *Game) Update(delta time.Duration) {
-
-}
-
 func (g *Game) Place(cs *ClientState) {
+
 	if !g.board[cs.PosY][cs.PosX].IsAlive() {
+		if cs.Placed >= MaxPlacedCells {
+			return
+		}
 		g.board[cs.PosY][cs.PosX].Color = cs.Color
+		cs.Placed++
 	} else if g.board[cs.PosY][cs.PosX].Color == cs.Color {
 		g.board[cs.PosY][cs.PosX].Color = 0
+		cs.Placed--
 	}
 }

@@ -1,6 +1,7 @@
 package ui
 
 import (
+	"fmt"
 	"strings"
 	"time"
 
@@ -118,7 +119,10 @@ func (m model) View() string {
 	}
 
 	mode += help
-	sb.WriteString(help)
+	mode += fmt.Sprintf("            %d/%d cells placed", m.clientState.Placed, game.MaxPlacedCells)
+	mode += fmt.Sprintf("            %d/%d players paused", m.game.PausedPlayers(), m.game.Players())
+
+	sb.WriteString(mode)
 
 	return sb.String()
 }

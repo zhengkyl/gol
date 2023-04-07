@@ -10,6 +10,7 @@ import (
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/charmbracelet/log"
 	"github.com/charmbracelet/ssh"
 	"github.com/charmbracelet/wish"
@@ -33,8 +34,7 @@ func RunServer() {
 		wish.WithAddress(fmt.Sprintf("%s:%d", host, port)),
 		wish.WithHostKeyPath(".ssh/server_ed25519"),
 		wish.WithMiddleware(
-			bm.MiddlewareWithProgramHandler(teaHandler(game), termenv.ANSI256),
-			// bm.Middleware(teaHandler),
+			MiddlewareWithProgramHandler(teaHandler(game), termenv.ANSI256, game),
 			lm.Middleware(),
 		),
 	)
@@ -81,8 +81,48 @@ func teaHandler(g *game.Game) bm.ProgramHandler {
 
 		p := tea.NewProgram(ui, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
 
-		g.Join(p, cs)
+		if !g.Join(p, cs) {
+			wish.Fatalln(s, fmt.Sprintf("Failed to join. %d/%d players in game. :/", g.Players(), game.MaxPlayers))
+			return nil
+		}
 
 		return p
+	}
+}
+
+// copied from wish/bubbletea b/c need to know when p.Quit() in order to trigger game.Leave()
+func MiddlewareWithProgramHandler(bth bm.ProgramHandler, cp termenv.Profile, game *game.Game) wish.Middleware {
+	return func(sh ssh.Handler) ssh.Handler {
+		lipgloss.SetColorProfile(cp)
+		return func(s ssh.Session) {
+			p := bth(s)
+			if p != nil {
+				_, windowChanges, _ := s.Pty()
+				go func() {
+					for {
+						select {
+						case <-s.Context().Done():
+							if p != nil {
+								p.Quit()
+								game.Leave(p)
+								return
+							}
+						case w := <-windowChanges:
+							if p != nil {
+								p.Send(tea.WindowSizeMsg{Width: w.Width, Height: w.Height})
+							}
+						}
+					}
+				}()
+				if _, err := p.Run(); err != nil {
+					log.Error("app exit with error", "error", err)
+				}
+				// p.Kill() will force kill the program if it's still running,
+				// and restore the terminal to its original state in case of a
+				// tui crash
+				p.Kill()
+			}
+			sh(s)
+		}
 	}
 }
