@@ -18,6 +18,8 @@ type model struct {
 	boardHeight    int
 	viewportWidth  int
 	viewportHeight int
+	viewportPosY   int
+	viewportPosX   int
 	// board       [][]life.Cell
 	// clientState.PosX        int
 	// clientState.PosY        int
@@ -48,6 +50,8 @@ func New(width, height int, cs *game.ClientState, g *game.Game) model {
 		boardHeight:    boardHeight,
 		viewportWidth:  width / 2,
 		viewportHeight: height - 1,
+		viewportPosY:   cs.PosY + (height-1)/2,
+		viewportPosX:   cs.PosX + (width/2)/2,
 		// board:       life.NewBoard(boardWidth, boardHeight),
 		// clientState.PosX:        boardWidth / 2,
 		// clientState.PosY:        boardHeight / 2,
@@ -55,7 +59,7 @@ func New(width, height int, cs *game.ClientState, g *game.Game) model {
 	}
 }
 
-func (m model) Init() tea.Cmd {
+func (m *model) Init() tea.Cmd {
 	return nil
 }
 
@@ -63,7 +67,14 @@ func mod(dividend, divisor int) int {
 	return (dividend + divisor) % divisor
 }
 
-func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+func abs(exp int) int {
+	if exp < 0 {
+		return -exp
+	}
+	return exp
+}
+
+func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
@@ -85,14 +96,32 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		switch {
 		case key.Matches(msg, keybinds.KeyBinds.Quit):
 			return m, tea.Quit
+
 		case key.Matches(msg, keybinds.KeyBinds.Up):
+
 			m.clientState.PosY = mod(m.clientState.PosY-1, m.boardHeight)
+			if m.clientState.PosY == mod(m.viewportPosY-1, m.boardHeight) {
+				m.viewportPosY = m.clientState.PosY
+			}
+
 		case key.Matches(msg, keybinds.KeyBinds.Left):
-			m.clientState.PosX = (m.clientState.PosX - 1 + m.boardWidth) % m.boardWidth
+			m.clientState.PosX = mod(m.clientState.PosX-1, m.boardWidth)
+			if m.clientState.PosX == mod(m.viewportPosX-1, m.boardWidth) {
+				m.viewportPosX = m.clientState.PosX
+			}
+
 		case key.Matches(msg, keybinds.KeyBinds.Down):
-			m.clientState.PosY = (m.clientState.PosY + 1 + m.boardHeight) % m.boardHeight
+
+			m.clientState.PosY = mod(m.clientState.PosY+1, m.boardHeight)
+			if m.clientState.PosY == mod(m.viewportPosY+m.viewportHeight, m.boardHeight) {
+				m.viewportPosY = mod(m.viewportPosY+1, m.boardHeight)
+			}
+
 		case key.Matches(msg, keybinds.KeyBinds.Right):
-			m.clientState.PosX = (m.clientState.PosX + 1 + m.boardWidth) % m.boardWidth
+			m.clientState.PosX = mod(m.clientState.PosX+1, m.boardWidth)
+			if m.clientState.PosX == mod(m.viewportPosX+m.viewportWidth, m.boardWidth) {
+				m.viewportPosX = mod(m.viewportPosX+1, m.boardWidth)
+			}
 		case key.Matches(msg, keybinds.KeyBinds.Place):
 			m.game.Place(m.clientState)
 		case key.Matches(msg, keybinds.KeyBinds.Pause):
@@ -103,11 +132,10 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
-func (m model) View() string {
-
+func (m *model) View() string {
 	sb := strings.Builder{}
 
-	sb.WriteString(m.game.ViewBoard(0, 0, m.viewportWidth, m.viewportHeight))
+	sb.WriteString(m.game.ViewBoard(m.viewportPosY, m.viewportPosX, m.viewportWidth, m.viewportHeight))
 	// sb.WriteString(m.game.ViewBoard(0, 0, 21, 21))
 	sb.WriteString("\n")
 

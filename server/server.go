@@ -79,7 +79,7 @@ func teaHandler(g *game.Game) bm.ProgramHandler {
 
 		ui := ui.New(pty.Window.Width, pty.Window.Height, cs, g)
 
-		p := tea.NewProgram(ui, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
+		p := tea.NewProgram(&ui, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
 
 		if !g.Join(p, cs) {
 			wish.Fatalln(s, fmt.Sprintf("Failed to join. %d/%d players in game. :/", g.Players(), game.MaxPlayers))
