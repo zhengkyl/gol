@@ -3,7 +3,6 @@ package ui
 import (
 	"fmt"
 	"strings"
-	"time"
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
@@ -20,38 +19,23 @@ type model struct {
 	viewportHeight int
 	viewportPosY   int
 	viewportPosX   int
-	// board       [][]life.Cell
-	// clientState.PosX        int
-	// clientState.PosY        int
-	// paused      bool
-}
-
-// var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("227"))
-// var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color("0"))
-
-type RenderMsg struct{}
-
-type TickMsg struct{}
-
-func tickOnce() tea.Cmd {
-
-	return tea.Tick(time.Second/5, func(t time.Time) tea.Msg {
-		return TickMsg{}
-	})
 }
 
 func New(width, height int, cs *game.ClientState, g *game.Game) model {
 	boardWidth, boardHeight := g.BoardSize()
+
+	vw := width / 2
+	vh := height - 1
 
 	return model{
 		clientState:    cs,
 		game:           g,
 		boardWidth:     boardWidth,
 		boardHeight:    boardHeight,
-		viewportWidth:  width / 2,
-		viewportHeight: height - 1,
-		viewportPosY:   cs.PosY + (height-1)/2,
-		viewportPosX:   cs.PosX + (width/2)/2,
+		viewportWidth:  vw,
+		viewportHeight: vh,
+		viewportPosY:   mod(cs.PosY-vh/2, boardHeight),
+		viewportPosX:   mod(cs.PosX+vw/2, boardWidth),
 		// board:       life.NewBoard(boardWidth, boardHeight),
 		// clientState.PosX:        boardWidth / 2,
 		// clientState.PosY:        boardHeight / 2,
@@ -67,13 +51,6 @@ func mod(dividend, divisor int) int {
 	return (dividend + divisor) % divisor
 }
 
-func abs(exp int) int {
-	if exp < 0 {
-		return -exp
-	}
-	return exp
-}
-
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
@@ -84,13 +61,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewportHeight = msg.Height - 1
 
 		m.clientState.Paused = true
-
-	// case TickMsg:
-	// 	if !m.clientState.Paused {
-	// 		// cmds = append(cmds, tickOnce())
-
-	// 		// m.board = life.NextBoard(m.board)
-	// 	}
 
 	case tea.KeyMsg:
 		switch {

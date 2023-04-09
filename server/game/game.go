@@ -19,10 +19,6 @@ type ClientState struct {
 	Placed int
 	Cells  int
 }
-type pixelLookup struct {
-	start int
-	end   int
-}
 
 type GameState int
 
@@ -32,14 +28,11 @@ const (
 )
 
 type Game struct {
-	clients           PlayerMap
-	board             [][]life.Cell
-	boardBufferLookup [][]pixelLookup
-	boardBuffer       string
-	// players           int
-	paused int
-	ticker *time.Ticker
-	state  GameState
+	clients PlayerMap
+	board   [][]life.Cell
+	paused  int
+	ticker  *time.Ticker
+	state   GameState
 }
 
 const MaxPlayers = 10
@@ -47,6 +40,8 @@ const MaxPlacedCells = 20
 const drawRate = 10
 const generationRate = 5
 const drawsPerGeneration = drawRate / generationRate
+
+const size = 100
 
 func (g *Game) Players() int {
 	return g.clients.Len()
@@ -57,21 +52,14 @@ func (g *Game) PausedPlayers() int {
 }
 
 func NewGame() *Game {
-
-	w, h := 20, 20
-	lookup := make([][]pixelLookup, h)
-	for y := range lookup {
-		lookup[y] = make([]pixelLookup, w)
-	}
+	w, h := size, size
 
 	return &Game{
-		clients:           PlayerMap{v: make(map[*tea.Program]*ClientState)},
-		board:             life.NewBoard(w, h),
-		boardBufferLookup: lookup,
-		// players:           0,
-		paused: 0,
-		ticker: time.NewTicker(time.Second / drawRate),
-		state:  PAUSED,
+		clients: PlayerMap{v: make(map[*tea.Program]*ClientState)},
+		board:   life.NewBoard(w, h),
+		paused:  0,
+		ticker:  time.NewTicker(time.Second / drawRate),
+		state:   PAUSED,
 	}
 }
 
@@ -174,85 +162,57 @@ func (g *Game) Update(delta time.Duration) {
 		g.state = PLAYING
 	}
 
-	sb := strings.Builder{}
-
-	for y, row := range g.board {
-		// line := ""
-		for x, cell := range row {
-			style := deadStyle
-			if cell.IsAlive() {
-				style = lipgloss.NewStyle().Background(lipgloss.Color(ColorTable[cell.Color].cell))
-				// store user id so can access them?
-			}
-
-			var pixel = "  "
-			if y == 0 && x == 0 {
-				// Keep track of tiling
-				pixel = "::"
-			}
-
-			for _, cs := range css {
-				if y == cs.PosY && x == cs.PosX {
-					pixel = "[]"
-					style = style.Copy().Foreground(lipgloss.Color(ColorTable[cs.Color].cursor))
-				}
-			}
-
-			g.boardBufferLookup[y][x].start = sb.Len()
-			sb.WriteString(style.Render(pixel))
-			g.boardBufferLookup[y][x].end = sb.Len()
-		}
-		sb.WriteString("\n")
-	}
-	g.boardBuffer = sb.String()[:sb.Len()-1]
-
 	for _, p := range ps {
 		p.Send(ServerRedrawMsg{})
 	}
 }
 
 func (g *Game) ViewBoard(top, left, width, height int) string {
+
+	// Arbitrary limits to avoid unreasonable terminal sizes
+	// This already shows the board 4 times
+	if width > size*2 {
+		width = size * 2
+	}
+	if height > size*2 {
+		height = size * 2
+	}
+
 	sb := strings.Builder{}
+
+	_, css := g.clients.Entries()
 
 	boardWidth, boardHeight := g.BoardSize()
 
 	for y := top; y < top+height; y++ {
-
 		boundY := (y + boardHeight) % boardHeight
 
-		boundXStart := (left + boardWidth) % boardWidth
-		boundXEndIncl := (left + width - 1 + boardWidth) % boardWidth
+		deadCount := 0
+		for x := left; x < left+width; x++ {
+			boundX := (x + boardWidth) % boardWidth
+			style := lipgloss.NewStyle()
+			pixel := "  "
 
-		// if width % boardWidth == 0 -> special case
-		repeats := (width - 1) / boardWidth
-
-		wrap := boundXStart > boundXEndIncl || repeats > 0
-
-		// remove 1 when repeat is discontinuous
-		if boundXStart <= boundXEndIncl && repeats > 0 {
-			repeats--
-		}
-
-		if wrap {
-
-			start := g.boardBufferLookup[boundY][boundXStart].start
-			end := g.boardBufferLookup[boundY][boardWidth-1].end
-			sb.WriteString(g.boardBuffer[start:end])
-
-			if repeats > 0 {
-				start = g.boardBufferLookup[boundY][0].start
-				end = g.boardBufferLookup[boundY][boardWidth-1].end
-				sb.WriteString(strings.Repeat(g.boardBuffer[start:end], repeats))
+			for _, cs := range css {
+				if boundY == cs.PosY && boundX == cs.PosX {
+					pixel = "[]"
+					style = style.Foreground(lipgloss.Color(ColorTable[cs.Color].cursor))
+				}
 			}
 
-			start = g.boardBufferLookup[boundY][0].start
-			end = g.boardBufferLookup[boundY][boundXEndIncl].end
-			sb.WriteString(g.boardBuffer[start:end])
+			if !g.board[boundY][boundX].IsAlive() && pixel == "  " {
+				deadCount++
+				continue
+			}
+			sb.WriteString(deadStyle.Render(strings.Repeat("  ", deadCount)))
+			deadCount = 0
 
-		} else {
-			start := g.boardBufferLookup[boundY][boundXStart].start
-			end := g.boardBufferLookup[boundY][boundXEndIncl].end
-			sb.WriteString(g.boardBuffer[start:end])
+			style = style.Background(lipgloss.Color(ColorTable[g.board[boundY][boundX].Color].cell))
+			sb.WriteString(style.Render(pixel))
+		}
+
+		if deadCount > 0 {
+			sb.WriteString(deadStyle.Render(strings.Repeat("  ", deadCount)))
 		}
 
 		sb.WriteString("\n")
