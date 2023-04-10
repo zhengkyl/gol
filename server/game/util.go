@@ -2,41 +2,48 @@ package game
 
 import (
 	"sync"
-
-	tea "github.com/charmbracelet/bubbletea"
 )
 
 type PlayerMap struct {
-	mu sync.Mutex
-	v  map[*tea.Program]*ClientState
+	mu        sync.Mutex
+	playerMap map[int]*PlayerState
+	counter   int
 }
 
-func (m *PlayerMap) Set(p *tea.Program, cs *ClientState) {
+func (m *PlayerMap) Add(cs *PlayerState) int {
 	m.mu.Lock()
-	m.v[p] = cs
+	m.counter++
+	m.playerMap[m.counter] = cs
 	m.mu.Unlock()
+	return m.counter
 }
 
-func (m *PlayerMap) Delete(p *tea.Program) {
+func (m *PlayerMap) Delete(id int) {
 	m.mu.Lock()
-	delete(m.v, p)
+	delete(m.playerMap, id)
 	m.mu.Unlock()
 }
 
 func (m *PlayerMap) Len() int {
-	m.mu.Lock()
-	defer m.mu.Unlock()
-	return len(m.v)
+	// m.mu.Lock()
+	// defer m.mu.Unlock()
+	return len(m.playerMap)
 }
 
-func (m *PlayerMap) Entries() ([]*tea.Program, []*ClientState) {
+func (m *PlayerMap) Get(id int) *PlayerState {
+	// m.mu.Lock()
+	// defer m.mu.Unlock()
+	return m.playerMap[id]
+}
+
+func (m *PlayerMap) Entries() ([]int, []*PlayerState) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
-	keys := make([]*tea.Program, 0, len(m.v))
-	vals := make([]*ClientState, 0, len(m.v))
-	for p, cs := range m.v {
-		keys = append(keys, p)
-		vals = append(vals, cs)
+	keys := make([]int, 0, len(m.playerMap))
+	vals := make([]*PlayerState, 0, len(m.playerMap))
+	for id, ps := range m.playerMap {
+		keys = append(keys, id)
+		vals = append(vals, ps)
 	}
 
 	return keys, vals
