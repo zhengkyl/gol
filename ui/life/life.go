@@ -5,12 +5,12 @@ package life
 const deadColor = 0
 
 type Cell struct {
-	Color int
-	Age   int
+	Player int
+	Age    int
 }
 
 func (c *Cell) IsAlive() bool {
-	return c.Color != deadColor
+	return c.Player != deadColor
 }
 
 func NewBoard(width, height int) [][]Cell {
@@ -47,21 +47,21 @@ func NextBoard(board [][]Cell) [][]Cell {
 					nx := (x + dx + boardWidth) % boardWidth
 
 					if board[ny][nx].IsAlive() {
-						neighbors[board[ny][nx].Color]++
+						neighbors[board[ny][nx].Player]++
 						numNeighbors++
 
-						if neighbors[board[ny][nx].Color] > mostNeighbors {
-							mostColor = board[ny][nx].Color
+						if neighbors[board[ny][nx].Player] > mostNeighbors {
+							mostColor = board[ny][nx].Player
 						}
 					}
 				}
 			}
 
 			if !board[y][x].IsAlive() && numNeighbors == 3 {
-				newBoard[y][x].Color = mostColor
+				newBoard[y][x].Player = mostColor
 			}
 			if board[y][x].IsAlive() && (numNeighbors == 2 || numNeighbors == 3) {
-				newBoard[y][x].Color = mostColor
+				newBoard[y][x].Player = mostColor
 			}
 		}
 

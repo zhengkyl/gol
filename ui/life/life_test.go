@@ -21,7 +21,7 @@ func BenchmarkNextBoard10(b *testing.B) {
 		for j := range board[i] {
 			if rand.Intn(10) == 0 {
 				board[i][j] = Cell{
-					Color: 1,
+					Player: 1,
 				}
 			}
 		}

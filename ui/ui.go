@@ -11,7 +11,7 @@ import (
 )
 
 type model struct {
-	clientState    *game.ClientState
+	playerState    *game.PlayerState
 	game           *game.Game
 	boardWidth     int
 	boardHeight    int
@@ -21,21 +21,21 @@ type model struct {
 	viewportPosX   int
 }
 
-func New(width, height int, cs *game.ClientState, g *game.Game) model {
-	boardWidth, boardHeight := g.BoardSize()
+func New(width, height int) model {
+	// boardWidth, boardHeight := g.BoardSize()
 
 	vw := width / 2
 	vh := height - 1
 
 	return model{
-		clientState:    cs,
-		game:           g,
-		boardWidth:     boardWidth,
-		boardHeight:    boardHeight,
+		// playerState:    ps,
+		// game:           g,
+		// boardWidth:     boardWidth,
+		// boardHeight:    boardHeight,
 		viewportWidth:  vw,
 		viewportHeight: vh,
-		viewportPosY:   mod(cs.PosY-vh/2, boardHeight),
-		viewportPosX:   mod(cs.PosX+vw/2, boardWidth),
+		// viewportPosY:   mod(ps.PosY-vh/2, boardHeight),
+		// viewportPosX:   mod(ps.PosX+vw/2, boardWidth),
 		// board:       life.NewBoard(boardWidth, boardHeight),
 		// clientState.PosX:        boardWidth / 2,
 		// clientState.PosY:        boardHeight / 2,
@@ -47,20 +47,17 @@ func (m *model) Init() tea.Cmd {
 	return nil
 }
 
-func mod(dividend, divisor int) int {
-	return (dividend + divisor) % divisor
-}
-
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-
 		m.viewportWidth = msg.Width / 2
 		m.viewportHeight = msg.Height - 1
 
-		m.clientState.Paused = true
+		m.playerState.Paused = true
+
+	case game.ServerRedrawMsg:
 
 	case tea.KeyMsg:
 		switch {
@@ -69,33 +66,33 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, keybinds.KeyBinds.Up):
 
-			m.clientState.PosY = mod(m.clientState.PosY-1, m.boardHeight)
-			if m.clientState.PosY == mod(m.viewportPosY-1, m.boardHeight) {
-				m.viewportPosY = m.clientState.PosY
+			m.playerState.PosY = mod(m.playerState.PosY-1, m.boardHeight)
+			if m.playerState.PosY == mod(m.viewportPosY-1, m.boardHeight) {
+				m.viewportPosY = m.playerState.PosY
 			}
 
 		case key.Matches(msg, keybinds.KeyBinds.Left):
-			m.clientState.PosX = mod(m.clientState.PosX-1, m.boardWidth)
-			if m.clientState.PosX == mod(m.viewportPosX-1, m.boardWidth) {
-				m.viewportPosX = m.clientState.PosX
+			m.playerState.PosX = mod(m.playerState.PosX-1, m.boardWidth)
+			if m.playerState.PosX == mod(m.viewportPosX-1, m.boardWidth) {
+				m.viewportPosX = m.playerState.PosX
 			}
 
 		case key.Matches(msg, keybinds.KeyBinds.Down):
 
-			m.clientState.PosY = mod(m.clientState.PosY+1, m.boardHeight)
-			if m.clientState.PosY == mod(m.viewportPosY+m.viewportHeight, m.boardHeight) {
+			m.playerState.PosY = mod(m.playerState.PosY+1, m.boardHeight)
+			if m.playerState.PosY == mod(m.viewportPosY+m.viewportHeight, m.boardHeight) {
 				m.viewportPosY = mod(m.viewportPosY+1, m.boardHeight)
 			}
 
 		case key.Matches(msg, keybinds.KeyBinds.Right):
-			m.clientState.PosX = mod(m.clientState.PosX+1, m.boardWidth)
-			if m.clientState.PosX == mod(m.viewportPosX+m.viewportWidth, m.boardWidth) {
+			m.playerState.PosX = mod(m.playerState.PosX+1, m.boardWidth)
+			if m.playerState.PosX == mod(m.viewportPosX+m.viewportWidth, m.boardWidth) {
 				m.viewportPosX = mod(m.viewportPosX+1, m.boardWidth)
 			}
 		case key.Matches(msg, keybinds.KeyBinds.Place):
-			m.game.Place(m.clientState)
+			// m.game.Place(m.playerState.)
 		case key.Matches(msg, keybinds.KeyBinds.Pause):
-			m.clientState.Paused = !m.clientState.Paused
+			m.playerState.Paused = !m.playerState.Paused
 		}
 	}
 
@@ -112,15 +109,20 @@ func (m *model) View() string {
 	help := "wasd/move - <space>/place - <enter>/pause"
 
 	mode := "Playing    "
-	if m.clientState.Paused {
+	if m.playerState.Paused {
 		mode = "Paused     "
 	}
 
 	mode += help
-	mode += fmt.Sprintf("            %d/%d cells placed", m.clientState.Placed, game.MaxPlacedCells)
+	mode += fmt.Sprintf("            %d/%d cells placed", m.playerState.Placed, game.MaxPlacedCells)
 	mode += fmt.Sprintf("            %d/%d players paused", m.game.PausedPlayers(), m.game.Players())
+	mode += fmt.Sprintf("            %s", m.playerState.Test)
 
 	sb.WriteString(mode)
 
 	return sb.String()
+}
+
+func mod(dividend, divisor int) int {
+	return (dividend + divisor) % divisor
 }

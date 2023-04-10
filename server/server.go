@@ -28,13 +28,13 @@ const (
 
 func RunServer() {
 
-	game := game.NewGame()
+	g := game.NewGame()
 
 	s, err := wish.NewServer(
 		wish.WithAddress(fmt.Sprintf("%s:%d", host, port)),
 		wish.WithHostKeyPath(".ssh/server_ed25519"),
 		wish.WithMiddleware(
-			MiddlewareWithProgramHandler(teaHandler(game), termenv.ANSI256, game),
+			MiddlewareWithProgramHandler(teaHandler(g), termenv.ANSI256),
 			lm.Middleware(),
 		),
 	)
@@ -49,7 +49,7 @@ func RunServer() {
 	log.Info("Starting SSH server", "host", host, "port", port)
 
 	go func() {
-		game.Run()
+		g.Run()
 		if err = s.ListenAndServe(); err != nil && !errors.Is(err, ssh.ErrServerClosed) {
 			log.Error("could not start server", "error", err)
 		}
@@ -75,23 +75,32 @@ func teaHandler(g *game.Game) bm.ProgramHandler {
 			return nil
 		}
 
-		cs := &game.ClientState{}
+		playerState := &game.PlayerState{
+			// sessionId: s.Context().SessionID(),
+			// user:      s.User(),
+		}
 
-		ui := ui.New(pty.Window.Width, pty.Window.Height, cs, g)
-
+		ui := ui.New(pty.Window.Width, pty.Window.Height)
 		p := tea.NewProgram(&ui, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
 
-		if !g.Join(p, cs) {
+		playerState.Program = p
+
+		id, ok := g.Join(playerState)
+
+		if !ok {
 			wish.Fatalln(s, fmt.Sprintf("Failed to join. %d/%d players in game. :/", g.Players(), game.MaxPlayers))
 			return nil
 		}
+
+		s.Context().SetValue("game", g)
+		s.Context().SetValue("playerId", id)
 
 		return p
 	}
 }
 
 // copied from wish/bubbletea b/c need to know when p.Quit() in order to trigger game.Leave()
-func MiddlewareWithProgramHandler(bth bm.ProgramHandler, cp termenv.Profile, game *game.Game) wish.Middleware {
+func MiddlewareWithProgramHandler(bth bm.ProgramHandler, cp termenv.Profile) wish.Middleware {
 	return func(sh ssh.Handler) ssh.Handler {
 		lipgloss.SetColorProfile(cp)
 		return func(s ssh.Session) {
@@ -104,7 +113,10 @@ func MiddlewareWithProgramHandler(bth bm.ProgramHandler, cp termenv.Profile, gam
 						case <-s.Context().Done():
 							if p != nil {
 								p.Quit()
-								game.Leave(p)
+
+								g := s.Context().Value("game").(*game.Game)
+								id := s.Context().Value("playerId").(int)
+								g.Leave(id)
 								return
 							}
 						case w := <-windowChanges:
