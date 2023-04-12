@@ -28,7 +28,7 @@ const (
 
 func RunServer() {
 
-	gm := game.NewGameManager()
+	gm := game.NewManager()
 
 	s, err := wish.NewServer(
 		wish.WithAddress(fmt.Sprintf("%s:%d", host, port)),
@@ -65,7 +65,7 @@ func RunServer() {
 	}
 }
 
-func teaHandler(gm *game.GameManager) bm.ProgramHandler {
+func teaHandler(gm *game.Manager) bm.ProgramHandler {
 	return func(s ssh.Session) *tea.Program {
 		pty, _, active := s.Pty()
 
@@ -74,31 +74,24 @@ func teaHandler(gm *game.GameManager) bm.ProgramHandler {
 			return nil
 		}
 
-		playerState := &game.PlayerState{
-			// sessionId: s.Context().SessionID(),
-			// user:      s.User(),
-		}
-
 		ui := ui.New(pty.Window.Width, pty.Window.Height)
 		p := tea.NewProgram(&ui, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
 
-		playerState.Program = p
-
 		go func() {
-			g := gm.FindGame()
-			id, ok := g.Join(playerState)
-
-			p.Send(game.JoinGameMsg{
-				Game: g,
-				Id:   id,
-			})
+			l := gm.FindLobby()
+			id, ok := l.Join(p)
 
 			if !ok {
-				wish.Fatalln(s, fmt.Sprintf("Failed to join. %d/%d players in game. :/", g.Players(), game.MaxPlayers))
+				wish.Fatalln(s, fmt.Sprintf("Failed to join. %d/%d players in game. :/", l.PlayerCount(), game.MaxPlayers))
 				return
 			}
 
-			s.Context().SetValue("game", g)
+			p.Send(game.JoinLobbyMsg{
+				Lobby: l,
+				Id:    id,
+			})
+
+			s.Context().SetValue("lobby", l)
 			s.Context().SetValue("playerId", id)
 		}()
 
@@ -107,7 +100,7 @@ func teaHandler(gm *game.GameManager) bm.ProgramHandler {
 }
 
 // copied from wish/bubbletea b/c need to know when p.Quit() in order to trigger game.Leave()
-func MiddlewareWithProgramHandler(bth bm.ProgramHandler, cp termenv.Profile, gm *game.GameManager) wish.Middleware {
+func MiddlewareWithProgramHandler(bth bm.ProgramHandler, cp termenv.Profile, gm *game.Manager) wish.Middleware {
 	return func(sh ssh.Handler) ssh.Handler {
 		lipgloss.SetColorProfile(cp)
 		return func(s ssh.Session) {
@@ -121,11 +114,18 @@ func MiddlewareWithProgramHandler(bth bm.ProgramHandler, cp termenv.Profile, gm 
 							if p != nil {
 								p.Quit()
 
-								g := s.Context().Value("game").(*game.Game)
-								id := s.Context().Value("playerId").(int)
-								g.Leave(id)
-								if g.Players() == 0 {
-									gm.EndGame(g)
+								l, ok := s.Context().Value("lobby").(*game.Lobby)
+								if !ok {
+									return
+								}
+								id, ok := s.Context().Value("playerId").(int)
+								if !ok {
+									return
+								}
+
+								l.Leave(id)
+								if l.PlayerCount() == 0 {
+									gm.EndGame(l)
 								}
 								return
 							}

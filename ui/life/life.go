@@ -5,8 +5,9 @@ package life
 const deadColor = 0
 
 type Cell struct {
-	Player int
-	Age    int
+	Player       int
+	PausedPlayer int
+	Age          int
 }
 
 func (c *Cell) IsAlive() bool {
@@ -62,6 +63,7 @@ func NextBoard(board [][]Cell) [][]Cell {
 			}
 			if board[y][x].IsAlive() && (numNeighbors == 2 || numNeighbors == 3) {
 				newBoard[y][x].Player = mostColor
+				newBoard[y][x].Age = board[y][x].Age + 1
 			}
 		}
 
