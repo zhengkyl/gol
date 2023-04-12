@@ -1,17 +1,12 @@
 package life
 
 // change to int or struct for customization
-
-const deadColor = 0
+const DeadPlayer = 0
 
 type Cell struct {
 	Player       int
 	PausedPlayer int
 	Age          int
-}
-
-func (c *Cell) IsAlive() bool {
-	return c.Player != deadColor
 }
 
 func NewBoard(width, height int) [][]Cell {
@@ -47,7 +42,7 @@ func NextBoard(board [][]Cell) [][]Cell {
 					ny := (y + dy + boardHeight) % boardHeight
 					nx := (x + dx + boardWidth) % boardWidth
 
-					if board[ny][nx].IsAlive() {
+					if board[ny][nx].Player != DeadPlayer {
 						neighbors[board[ny][nx].Player]++
 						numNeighbors++
 
@@ -58,10 +53,12 @@ func NextBoard(board [][]Cell) [][]Cell {
 				}
 			}
 
-			if !board[y][x].IsAlive() && numNeighbors == 3 {
+			newBoard[y][x].PausedPlayer = board[y][x].PausedPlayer
+
+			if board[y][x].Player == DeadPlayer && numNeighbors == 3 {
 				newBoard[y][x].Player = mostColor
 			}
-			if board[y][x].IsAlive() && (numNeighbors == 2 || numNeighbors == 3) {
+			if board[y][x].Player != DeadPlayer && (numNeighbors == 2 || numNeighbors == 3) {
 				newBoard[y][x].Player = mostColor
 				newBoard[y][x].Age = board[y][x].Age + 1
 			}

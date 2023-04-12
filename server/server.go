@@ -86,9 +86,14 @@ func teaHandler(gm *game.Manager) bm.ProgramHandler {
 				return
 			}
 
+			bw, bh := l.BoardSize()
+
 			p.Send(game.JoinLobbyMsg{
-				Lobby: l,
-				Id:    id,
+				Lobby:       l,
+				PlayerState: l.GetPlayer(id),
+				Id:          id,
+				BoardWidth:  bw,
+				BoardHeight: bh,
 			})
 
 			s.Context().SetValue("lobby", l)

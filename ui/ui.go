@@ -12,7 +12,7 @@ import (
 
 type model struct {
 	playerState    *game.PlayerState
-	game           *game.Lobby
+	lobby          *game.Lobby
 	id             int
 	boardWidth     int
 	boardHeight    int
@@ -45,12 +45,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case game.JoinLobbyMsg:
-		m.game = msg.Lobby
+		m.lobby = msg.Lobby
 		m.id = msg.Id
-		m.playerState = m.game.GetPlayer(m.id)
-		m.boardWidth, m.boardHeight = m.game.BoardSize()
-		m.viewportPosX = 0
-		m.viewportPosY = 0
+		m.playerState = msg.PlayerState
+		m.boardWidth = msg.BoardWidth
+		m.boardHeight = msg.BoardHeight
 
 		m.viewportPosY = mod(m.playerState.PosY-m.viewportHeight/2, m.boardHeight)
 		m.viewportPosX = mod(m.playerState.PosX+m.viewportWidth/2, m.boardWidth)
@@ -60,17 +59,15 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.viewportWidth = msg.Width / 2
 		m.viewportHeight = msg.Height - 1
 
-		// m.playerState.Paused = true
-
-	case game.ServerRedrawMsg:
-
+	case game.UpdateBoardMsg:
+		// do nothing? just rerender
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, keybinds.KeyBinds.Quit):
 			return m, tea.Quit
 		}
 
-		if m.game == nil {
+		if m.lobby == nil {
 			return m, nil
 		}
 
@@ -99,9 +96,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, keybinds.KeyBinds.Place):
-			m.game.Place(m.id)
+			m.lobby.Place(m.id)
 		case key.Matches(msg, keybinds.KeyBinds.Pause):
-			m.playerState.Paused = !m.playerState.Paused
+			m.lobby.TogglePause(m.id)
 		}
 	}
 
@@ -109,13 +106,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 }
 
 func (m *model) View() string {
-	if m.game == nil {
-		return "loading"
+	if m.lobby == nil {
+		return "loading... probably a critical error"
 	}
 
 	sb := strings.Builder{}
 
-	sb.WriteString(m.game.ViewBoard(m.viewportPosY, m.viewportPosX, m.viewportWidth, m.viewportHeight))
+	sb.WriteString(m.lobby.ViewBoard(m.viewportPosY, m.viewportPosX, m.viewportWidth, m.viewportHeight))
 	sb.WriteString("\n")
 
 	help := "wasd/move - <space>/place - <enter>/pause"
@@ -127,6 +124,7 @@ func (m *model) View() string {
 
 	mode += help
 	mode += fmt.Sprintf("            %d/%d cells placed", m.playerState.Placed, game.MaxPlacedCells)
+	mode += fmt.Sprintf("            %d/%d players", m.lobby.PlayerCount(), game.MaxPlayers)
 	// mode += fmt.Sprintf("            %s", m.playerState.Test)
 
 	sb.WriteString(mode)

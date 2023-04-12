@@ -36,7 +36,7 @@ type Lobby struct {
 	board        [][]life.Cell
 	boardMutex   sync.RWMutex
 	ticker       *time.Ticker
-	state        GameState
+	// state        GameState
 }
 
 const (
@@ -64,7 +64,7 @@ func NewLobby() *Lobby {
 		playerColors: [11]bool{true, false, false, false, false, false, false, false, false, false, false},
 		board:        life.NewBoard(w, h),
 		ticker:       time.NewTicker(time.Second / drawRate),
-		state:        PAUSED,
+		// state:        PAUSED,
 	}
 }
 
@@ -90,8 +90,11 @@ func (l *Lobby) Run() {
 }
 
 type JoinLobbyMsg struct {
-	Lobby *Lobby
-	Id    int
+	Lobby       *Lobby
+	PlayerState *PlayerState
+	Id          int
+	BoardWidth  int
+	BoardHeight int
 }
 
 func (l *Lobby) Join(p *tea.Program) (int, bool) {
@@ -149,7 +152,8 @@ func (l *Lobby) Leave(id int) {
 	for y, row := range l.board {
 		for x, cell := range row {
 			if cell.Player == id {
-				l.board[y][x].Player = 0
+				l.board[y][x].Player = life.DeadPlayer
+				l.board[y][x].PausedPlayer = life.DeadPlayer
 			}
 		}
 	}
@@ -163,7 +167,7 @@ func (l *Lobby) BoardSize() (int, int) {
 	return len(l.board), len(l.board[0])
 }
 
-type ServerRedrawMsg struct{}
+type UpdateBoardMsg struct{}
 
 // type byPos []*ClientState
 
@@ -184,9 +188,9 @@ var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color(ColorTable[0].cell
 
 func (l *Lobby) UpdateBoard() {
 
-	if l.state != PLAYING {
-		return
-	}
+	// if l.state != PLAYING {
+	// 	return
+	// }
 
 	l.boardMutex.Lock()
 	defer l.boardMutex.Unlock()
@@ -197,7 +201,7 @@ func (l *Lobby) Update(delta time.Duration) {
 	l.playersMutex.RLock()
 	for _, player := range l.players {
 
-		player.Program.Send(ServerRedrawMsg{})
+		player.Program.Send(UpdateBoardMsg{})
 	}
 	l.playersMutex.RUnlock()
 
@@ -238,13 +242,13 @@ func (l *Lobby) ViewBoard(top, left, width, height int) string {
 				if boundY == player.PosY && boundX == player.PosX {
 					cursor = true
 					pixel = "[]"
-					style = style.Background(lipgloss.Color(ColorTable[player.Color].cursor))
+					style = style.Foreground(lipgloss.Color(ColorTable[player.Color].cursor))
 
 					break
 				}
 			}
 
-			if !l.board[boundY][boundX].IsAlive() && !cursor {
+			if l.board[boundY][boundX].Player == life.DeadPlayer && l.board[boundY][boundX].PausedPlayer == life.DeadPlayer && !cursor {
 				deadCount++
 				continue
 			}
@@ -252,8 +256,15 @@ func (l *Lobby) ViewBoard(top, left, width, height int) string {
 			deadCount = 0
 
 			if !cursor {
-				color := l.players[l.board[boundY][boundX].Player].Color // fix will break w/ concurrent read/write
-				style = style.Background(lipgloss.Color(ColorTable[color].cell))
+				if l.board[boundY][boundX].Player != life.DeadPlayer {
+					bc := l.players[l.board[boundY][boundX].Player].Color
+					style = style.Background(lipgloss.Color(ColorTable[bc].cell))
+				}
+				if l.board[boundY][boundX].PausedPlayer != life.DeadPlayer {
+					fc := l.players[l.board[boundY][boundX].PausedPlayer].Color
+					style = style.Foreground(lipgloss.Color(ColorTable[fc].cell))
+					pixel = "::"
+				}
 				// pixel = fmt.Sprint(l.board[boundY][boundX].Age)
 			}
 			sb.WriteString(style.Render(pixel))
@@ -272,10 +283,40 @@ func (l *Lobby) ViewBoard(top, left, width, height int) string {
 func (l *Lobby) Place(id int) {
 
 	l.playersMutex.RLock()
-	player, ok := l.players[id]
+	p, ok := l.players[id]
 	l.playersMutex.RUnlock()
 
 	// Maybe if player leaves but place() hasn't run yet?
+	if !ok {
+		return
+	}
+	// Can only place in pause mode
+	if !p.Paused {
+		return
+	}
+
+	l.boardMutex.Lock()
+	defer l.boardMutex.Unlock()
+
+	if l.board[p.PosY][p.PosX].PausedPlayer == life.DeadPlayer {
+		if p.Placed >= MaxPlacedCells {
+			return
+		}
+		l.board[p.PosY][p.PosX].PausedPlayer = p.Id
+		p.Placed++
+
+	} else if l.board[p.PosY][p.PosX].PausedPlayer == p.Color {
+		l.board[p.PosY][p.PosX].PausedPlayer = 0
+		p.Placed--
+	}
+}
+
+func (l *Lobby) TogglePause(id int) {
+	l.playersMutex.RLock()
+	p, ok := l.players[id]
+	l.playersMutex.RUnlock()
+
+	// Maybe if player leaves unexpectedly
 	if !ok {
 		return
 	}
@@ -283,20 +324,44 @@ func (l *Lobby) Place(id int) {
 	l.boardMutex.Lock()
 	defer l.boardMutex.Unlock()
 
-	if !l.board[player.PosY][player.PosX].IsAlive() {
-		if player.Placed >= MaxPlacedCells {
-			return
+	p.Paused = !p.Paused
+
+	if !p.Paused {
+		// valid := true
+
+		for _, row := range l.board {
+			for _, cell := range row {
+				if cell.PausedPlayer == id && cell.Player != life.DeadPlayer {
+					// valid = false
+					return
+				}
+			}
 		}
-		l.board[player.PosY][player.PosX].Player = player.Id
-		player.Placed++
-	} else if l.board[player.PosY][player.PosX].Player == player.Color {
-		l.board[player.PosY][player.PosX].Player = 0
-		player.Placed--
+		for y, row := range l.board {
+			for x, cell := range row {
+				if cell.PausedPlayer == id {
+					l.board[y][x].Player = cell.PausedPlayer
+				}
+			}
+		}
+
+	} else {
+		for y, row := range l.board {
+			for x, cell := range row {
+				if cell.Player == id {
+					l.board[y][x].Player = life.DeadPlayer
+				}
+			}
+		}
+		// Don't need a lock, b/c
+		p.Placed = 0
 	}
+
 }
 
 func (l *Lobby) GetPlayer(id int) *PlayerState {
-	// l.playersMutex.RLock()
-	// defer l.playersMutex.RUnlock()
+	// TODO i can't tell if this mutex is rlock is necessary
+	l.playersMutex.RLock()
+	defer l.playersMutex.RUnlock()
 	return l.players[id]
 }
