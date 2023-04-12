@@ -1,7 +1,9 @@
 package game
 
 import (
+	"fmt"
 	"math/rand"
+	"sort"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -36,28 +38,19 @@ type Lobby struct {
 	board        [][]life.Cell
 	boardMutex   sync.RWMutex
 	ticker       *time.Ticker
-	// state        GameState
 }
 
-const (
-	PAUSED GameState = iota
-	PLAYING
-)
-
-const MaxPlayers = 2
-const MaxPlacedCells = 20
+const MaxPlayers = 10
+const MaxPlacedCells = 40
 const drawRate = 20
 const generationRate = 5
 const drawsPerGeneration = drawRate / generationRate
 
-const size = 100
-
-func (l *Lobby) PlayerCount() int {
-	return int(l.playerCount.Load())
-}
+const defaultWidth = 160
+const defaultHeight = 90
 
 func NewLobby() *Lobby {
-	w, h := size, size
+	w, h := defaultWidth, defaultHeight
 
 	return &Lobby{
 		players:      make(map[int]*PlayerState),
@@ -66,6 +59,10 @@ func NewLobby() *Lobby {
 		ticker:       time.NewTicker(time.Second / drawRate),
 		// state:        PAUSED,
 	}
+}
+
+func (l *Lobby) PlayerCount() int {
+	return int(l.playerCount.Load())
 }
 
 func (l *Lobby) Run() {
@@ -164,27 +161,30 @@ func (l *Lobby) Unpause() {
 }
 
 func (l *Lobby) BoardSize() (int, int) {
-	return len(l.board), len(l.board[0])
+	return len(l.board[0]), len(l.board)
 }
 
 type UpdateBoardMsg struct{}
 
-// type byPos []*ClientState
+type byCells []*PlayerState
 
-// func (s byPos) Len() int {
-// 	return len(s)
-// }
-// func (s byPos) Swap(i, j int) {
-// 	s[i], s[j] = s[j], s[i]
-// }
-// func (s byPos) Less(i, j int) bool {
-// 	if s[i].PosX < s[j].PosX {
-// 		return true
-// 	}
-// 	return s[i].PosY < s[j].PosY
-// }
+func (s byCells) Len() int {
+	return len(s)
+}
+func (s byCells) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s byCells) Less(i, j int) bool {
+	if s[i].Cells < s[j].Cells {
+		return true
+	}
+	if s[i].Cells > s[j].Cells {
+		return false
+	}
+	return s[i].Color < s[j].Color
+}
 
-var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color(ColorTable[0].cell))
+var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color(ColorTable[0].Cell))
 
 func (l *Lobby) UpdateBoard() {
 
@@ -193,8 +193,22 @@ func (l *Lobby) UpdateBoard() {
 	// }
 
 	l.boardMutex.Lock()
-	defer l.boardMutex.Unlock()
 	l.board = life.NextBoard(l.board)
+	l.boardMutex.Unlock()
+
+	l.playersMutex.Lock()
+	for _, ps := range l.players {
+		ps.Cells = 0
+	}
+
+	for _, row := range l.board {
+		for _, cell := range row {
+			if cell.Player != life.DeadPlayer {
+				l.players[cell.Player].Cells++
+			}
+		}
+	}
+	l.playersMutex.Unlock()
 }
 
 func (l *Lobby) Update(delta time.Duration) {
@@ -207,15 +221,38 @@ func (l *Lobby) Update(delta time.Duration) {
 
 }
 
+func (l *Lobby) Scoreboard() string {
+	l.playersMutex.RLock()
+	defer l.playersMutex.RUnlock()
+
+	sb := strings.Builder{}
+	var ps []*PlayerState
+
+	for _, p := range l.players {
+		ps = append(ps, p)
+	}
+	sort.Sort(sort.Reverse(byCells(ps)))
+
+	for _, p := range ps {
+		colorStyle := lipgloss.NewStyle().Background(lipgloss.Color(ColorTable[p.Color].Cell))
+
+		sb.WriteString(colorStyle.Render("  "))
+		sb.WriteString(" ")
+		sb.WriteString(fmt.Sprintf("%-5d", p.Cells))
+		sb.WriteString("  ")
+	}
+	return sb.String()
+}
+
 func (l *Lobby) ViewBoard(top, left, width, height int) string {
 
 	// Arbitrary limits to avoid unreasonable terminal sizes
 	// This already shows the board 4 times
-	if width > size*2 {
-		width = size * 2
+	if width > defaultWidth*2 {
+		width = defaultHeight * 2
 	}
-	if height > size*2 {
-		height = size * 2
+	if height > defaultHeight*2 {
+		height = defaultHeight * 2
 	}
 
 	sb := strings.Builder{}
@@ -242,7 +279,7 @@ func (l *Lobby) ViewBoard(top, left, width, height int) string {
 				if boundY == player.PosY && boundX == player.PosX {
 					cursor = true
 					pixel = "[]"
-					style = style.Foreground(lipgloss.Color(ColorTable[player.Color].cursor))
+					style = style.Foreground(lipgloss.Color(ColorTable[player.Color].Cursor))
 
 					break
 				}
@@ -255,17 +292,20 @@ func (l *Lobby) ViewBoard(top, left, width, height int) string {
 			sb.WriteString(deadStyle.Render(strings.Repeat("  ", deadCount)))
 			deadCount = 0
 
-			if !cursor {
-				if l.board[boundY][boundX].Player != life.DeadPlayer {
-					bc := l.players[l.board[boundY][boundX].Player].Color
-					style = style.Background(lipgloss.Color(ColorTable[bc].cell))
-				}
-				if l.board[boundY][boundX].PausedPlayer != life.DeadPlayer {
-					fc := l.players[l.board[boundY][boundX].PausedPlayer].Color
-					style = style.Foreground(lipgloss.Color(ColorTable[fc].cell))
+			if l.board[boundY][boundX].Player != life.DeadPlayer {
+				bc := l.players[l.board[boundY][boundX].Player].Color
+				style = style.Background(lipgloss.Color(ColorTable[bc].Cell))
+			}
+			if l.board[boundY][boundX].PausedPlayer != life.DeadPlayer {
+				fc := l.players[l.board[boundY][boundX].PausedPlayer].Color
+				if !cursor {
+					style = style.Foreground(lipgloss.Color(ColorTable[fc].Cell))
 					pixel = "::"
+				} else {
+					// style = style.Background(lipgloss.Color(ColorTable[fc].cell))
+					pixel = ":]"
 				}
-				// pixel = fmt.Sprint(l.board[boundY][boundX].Age)
+
 			}
 			sb.WriteString(style.Render(pixel))
 		}
@@ -324,9 +364,7 @@ func (l *Lobby) TogglePause(id int) {
 	l.boardMutex.Lock()
 	defer l.boardMutex.Unlock()
 
-	p.Paused = !p.Paused
-
-	if !p.Paused {
+	if p.Paused {
 		// valid := true
 
 		for _, row := range l.board {
@@ -353,10 +391,9 @@ func (l *Lobby) TogglePause(id int) {
 				}
 			}
 		}
-		// Don't need a lock, b/c
-		p.Placed = 0
 	}
 
+	p.Paused = !p.Paused
 }
 
 func (l *Lobby) GetPlayer(id int) *PlayerState {

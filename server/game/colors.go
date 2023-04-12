@@ -1,8 +1,8 @@
 package game
 
 type playerColor struct {
-	cursor string
-	cell   string
+	Cursor string
+	Cell   string
 }
 
 var ColorTable = [11]playerColor{

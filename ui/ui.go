@@ -6,30 +6,34 @@ import (
 
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
+	"github.com/charmbracelet/lipgloss"
 	"github.com/zhengkyl/gol/server/game"
 	"github.com/zhengkyl/gol/ui/keybinds"
 )
 
 type model struct {
-	playerState    *game.PlayerState
-	lobby          *game.Lobby
-	id             int
-	boardWidth     int
-	boardHeight    int
+	playerState *game.PlayerState
+	lobby       *game.Lobby
+	id          int
+	boardWidth  int
+	boardHeight int
+	//
 	viewportWidth  int
 	viewportHeight int
 	viewportPosY   int
 	viewportPosX   int
+	//
 }
 
 func New(width, height int) model {
 
 	vw := width / 2
-	vh := height - 1
+	vh := height - 2
 
 	return model{
 		viewportWidth:  vw,
 		viewportHeight: vh,
+		// asdf: help.New()
 	}
 }
 
@@ -52,12 +56,16 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.boardHeight = msg.BoardHeight
 
 		m.viewportPosY = mod(m.playerState.PosY-m.viewportHeight/2, m.boardHeight)
-		m.viewportPosX = mod(m.playerState.PosX+m.viewportWidth/2, m.boardWidth)
+		m.viewportPosX = mod(m.playerState.PosX-m.viewportWidth/2, m.boardWidth)
 		return m, nil
 
 	case tea.WindowSizeMsg:
 		m.viewportWidth = msg.Width / 2
-		m.viewportHeight = msg.Height - 1
+		m.viewportHeight = msg.Height - 2
+		// if m.playerState != nil {
+		// 	m.viewportPosY = mod(m.playerState.PosY-m.viewportHeight/2, m.boardHeight)
+		// 	m.viewportPosX = mod(m.playerState.PosX+m.viewportWidth/2, m.boardWidth)
+		// }
 
 	case game.UpdateBoardMsg:
 		// do nothing? just rerender
@@ -105,29 +113,54 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	return m, tea.Batch(cmds...)
 }
 
+var (
+	helpStyle = lipgloss.NewStyle().Inline(true)
+)
+
 func (m *model) View() string {
 	if m.lobby == nil {
-		return "loading... probably a critical error"
+		return "loading... probably a critical error, there should be negligible loading"
 	}
 
 	sb := strings.Builder{}
 
+	avatarStyle := lipgloss.NewStyle().Background(lipgloss.Color(game.ColorTable[m.playerState.Color].Cell))
+
+	mode := "PLAYING"
+	if m.playerState.Paused {
+		mode = fmt.Sprintf("EDITING %d/%d cells placed", m.playerState.Placed, game.MaxPlacedCells)
+	}
+
+	sb.WriteString(helpStyle.MaxWidth(m.viewportWidth*2).Render(
+		avatarStyle.Render("  "),
+		fmt.Sprintf("%-30s", mode),
+		"SCORE",
+		m.lobby.Scoreboard(),
+	))
+
+	sb.WriteString("\n")
 	sb.WriteString(m.lobby.ViewBoard(m.viewportPosY, m.viewportPosX, m.viewportWidth, m.viewportHeight))
 	sb.WriteString("\n")
 
-	help := "wasd/move - <space>/place - <enter>/pause"
+	// helpSb stri
 
-	mode := "Playing    "
-	if m.playerState.Paused {
-		mode = "Paused     "
-	}
+	sb.WriteString(helpStyle.MaxWidth(m.viewportWidth*2).Render(
+		"wasd/hjkl/←↑↓→",
+		"move",
+		" • ",
+		"<space>",
+		"place",
+		" • ",
+		"<enter>",
+		"play/edit",
+	))
 
-	mode += help
-	mode += fmt.Sprintf("            %d/%d cells placed", m.playerState.Placed, game.MaxPlacedCells)
-	mode += fmt.Sprintf("            %d/%d players", m.lobby.PlayerCount(), game.MaxPlayers)
+	// mode += help
+	// mode += fmt.Sprintf("            %d/%d cells placed", m.playerState.Placed, game.MaxPlacedCells)
+	// mode += fmt.Sprintf("            %d/%d players", m.lobby.PlayerCount(), game.MaxPlayers)
 	// mode += fmt.Sprintf("            %s", m.playerState.Test)
 
-	sb.WriteString(mode)
+	// sb.WriteString(mode)
 
 	return sb.String()
 }

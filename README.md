@@ -11,15 +11,6 @@ go run main.go
 ssh -p2345 localhost
 ```
 
-## IMPORTANT!
-
-Add to `~/.ssh/config` or manually clear out `localhost` entries `~/.ssh/known_hosts`. Otherwise, it may cause issues b/c the server's key signature changes each time it restarts.
-
-```
-Host localhost
-    UserKnownHostsFile /dev/null
-```
-
 ### Building
 
 If you see a `no such file or directory` error when running the container, see try this.

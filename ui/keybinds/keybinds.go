@@ -11,22 +11,24 @@ type keyMap struct {
 	Pause key.Binding
 	Help  key.Binding
 	Quit  key.Binding
+	// For help display
+	// Move key.Binding
 }
 
-// ShortHelp returns keybindings to be shown in the mini help view. It's part
-// of the key.Map interface.
-func (k keyMap) ShortHelp() []key.Binding {
-	return []key.Binding{k.Place, k.Pause, k.Help, k.Quit}
-}
+// // ShortHelp returns keybindings to be shown in the mini help view. It's part
+// // of the key.Map interface.
+// func (k keyMap) ShortHelp() []key.Binding {
+// 	return []key.Binding{k.Move, k.Place, k.Pause, k.Help, k.Quit}
+// }
 
-// FullHelp returns keybindings for the expanded help view. It's part of the
-// key.Map interface.
-func (k keyMap) FullHelp() [][]key.Binding {
-	return [][]key.Binding{
-		{k.Up, k.Down, k.Left, k.Right}, // first column
-		{k.Help, k.Quit},                // second column
-	}
-}
+// // FullHelp returns keybindings for the expanded help view. It's part of the
+// // key.Map interface.
+// func (k keyMap) FullHelp() [][]key.Binding {
+// 	return [][]key.Binding{
+// 		{k.Up, k.Down, k.Left, k.Right}, // first column
+// 		{k.Help, k.Quit},                // second column
+// 	}
+// }
 
 var KeyBinds = keyMap{
 	Up: key.NewBinding(
@@ -47,11 +49,11 @@ var KeyBinds = keyMap{
 	),
 	Place: key.NewBinding(
 		key.WithKeys(" "),
-		key.WithHelp("space", "place"),
+		key.WithHelp("<space>", "place"),
 	),
 	Pause: key.NewBinding(
 		key.WithKeys("enter"),
-		key.WithHelp("enter", "pause/unpause"),
+		key.WithHelp("<enter>", "pause"),
 	),
 	Help: key.NewBinding(
 		key.WithKeys("?"),
