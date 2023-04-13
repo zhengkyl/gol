@@ -19,7 +19,11 @@ https://puhack.horse/gol-gh
 
 # Demo
 
-`ssh gol.zhengkyl.com`
+## Just run it locally
+
+## Hosted multiplayer version
+
+`ssh gool.fly.dev`
 
 ---
 
@@ -116,6 +120,20 @@ must implement tea.Model
 - `Init()`
 - `Update()`
 - `View()`
+
+---
+
+# Dependencies
+
+VSCode Go Extension should do automagically
+
+First, try `go mod tidy`
+
+## Otherwise
+
+`go get package "github.com/charmbracelet/bubbletea"`
+
+`go get package "github.com/charmbracelet/lipgloss"`
 
 ---
 

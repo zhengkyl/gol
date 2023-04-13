@@ -19,15 +19,12 @@ type model struct {
 }
 
 func New(width, height int) model {
-	boardWidth := width / 2
-	boardHeight := height - 1
-
 	return model{
-		boardWidth:  boardWidth,
-		boardHeight: boardHeight,
-		board:       life.NewBoard(boardWidth, boardHeight),
-		posX:        boardWidth / 2,
-		posY:        boardHeight / 2,
+		boardWidth:  width,
+		boardHeight: height,
+		board:       life.NewBoard(width, height),
+		posX:        width / 2,
+		posY:        height / 2,
 		paused:      true,
 	}
 }
@@ -46,7 +43,7 @@ func (m model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	switch msg := msg.(type) {
 	case tea.WindowSizeMsg:
-		return New(msg.Width, msg.Height), nil
+		return New(msg.Width/2, msg.Height-1), nil
 
 	case tea.KeyMsg:
 		switch msg.String() {
@@ -84,10 +81,9 @@ var aliveStyle = lipgloss.NewStyle().Background(lipgloss.Color("227"))
 
 func (m model) View() string {
 
-	var lines []string
+	sb := strings.Builder{}
 
 	for y := range m.board {
-		line := ""
 		for x, alive := range m.board[y] {
 
 			pixel := "  "
@@ -100,17 +96,17 @@ func (m model) View() string {
 				style = aliveStyle
 			}
 
-			line += style.Render(pixel)
+			sb.WriteString(style.Render(pixel))
 		}
 
-		lines = append(lines, line)
+		sb.WriteString("\n")
 	}
 
 	status := "Playing"
 	if m.paused {
 		status = "Paused"
 	}
-	lines = append(lines, status)
+	sb.WriteString(status)
 
-	return strings.Join(lines, "\n")
+	return sb.String()
 }
