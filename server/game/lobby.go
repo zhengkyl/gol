@@ -57,7 +57,6 @@ func NewLobby() *Lobby {
 		playerColors: [11]bool{true, false, false, false, false, false, false, false, false, false, false},
 		board:        life.NewBoard(w, h),
 		ticker:       time.NewTicker(time.Second / drawRate),
-		// state:        PAUSED,
 	}
 }
 
@@ -187,10 +186,6 @@ func (s byCells) Less(i, j int) bool {
 var deadStyle = lipgloss.NewStyle().Background(lipgloss.Color(ColorTable[0].Cell))
 
 func (l *Lobby) UpdateBoard() {
-
-	// if l.state != PLAYING {
-	// 	return
-	// }
 
 	l.boardMutex.Lock()
 	l.board = life.NextBoard(l.board)

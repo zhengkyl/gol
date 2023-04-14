@@ -88,9 +88,16 @@ func teaHandler(gm *game.Manager) bm.ProgramHandler {
 
 			bw, bh := l.BoardSize()
 
+			ps := l.GetPlayer(id)
+
+			if ps == nil {
+				wish.Fatalln(s, "Failed to join. PlayerState not initialized.")
+				return
+			}
+
 			p.Send(game.JoinLobbyMsg{
 				Lobby:       l,
-				PlayerState: l.GetPlayer(id),
+				PlayerState: ps,
 				Id:          id,
 				BoardWidth:  bw,
 				BoardHeight: bh,

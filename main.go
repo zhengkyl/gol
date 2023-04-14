@@ -1,16 +1,15 @@
 package main
 
 import (
-	"net/http"
-	_ "net/http/pprof"
+	// _ "net/http/pprof"
 
 	"github.com/zhengkyl/gol/server"
 )
 
 func main() {
-	go func() {
-		http.ListenAndServe("localhost:1234", nil)
-	}()
+	// go func() {
+	// 	http.ListenAndServe("localhost:1234", nil)
+	// }()
 	server.RunServer()
 
 	// uncomment to run ui without server

@@ -55,7 +55,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.boardWidth = msg.BoardWidth
 		m.boardHeight = msg.BoardHeight
 
-		m.viewportPosY = mod(m.playerState.PosY-m.viewportHeight/2, m.boardHeight)
+		m.viewportPosY = mod(m.playerState.PosY-m.viewportHeight/2, m.boardHeight) // THIS IS THE LINE
 		m.viewportPosX = mod(m.playerState.PosX-m.viewportWidth/2, m.boardWidth)
 		return m, nil
 
