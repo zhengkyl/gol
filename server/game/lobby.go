@@ -288,19 +288,22 @@ func (l *Lobby) ViewBoard(top, left, width, height int) string {
 			deadCount = 0
 
 			if l.board[boundY][boundX].Player != life.DeadPlayer {
-				bc := l.players[l.board[boundY][boundX].Player].Color
-				style = style.Background(lipgloss.Color(ColorTable[bc].Cell))
+				player, ok := l.players[l.board[boundY][boundX].Player]
+				if ok {
+					style = style.Background(lipgloss.Color(ColorTable[player.Color].Cell))
+				}
 			}
 			if l.board[boundY][boundX].PausedPlayer != life.DeadPlayer {
-				fc := l.players[l.board[boundY][boundX].PausedPlayer].Color
-				if !cursor {
-					style = style.Foreground(lipgloss.Color(ColorTable[fc].Cell))
-					pixel = "::"
-				} else {
-					// style = style.Background(lipgloss.Color(ColorTable[fc].cell))
-					pixel = ":]"
+				player, ok := l.players[l.board[boundY][boundX].PausedPlayer]
+				if ok {
+					if !cursor {
+						style = style.Foreground(lipgloss.Color(ColorTable[player.Color].Cell))
+						pixel = "::"
+					} else {
+						// style = style.Background(lipgloss.Color(ColorTable[fc].cell))
+						pixel = ":]"
+					}
 				}
-
 			}
 			sb.WriteString(style.Render(pixel))
 		}
