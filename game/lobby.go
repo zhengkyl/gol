@@ -11,7 +11,7 @@ import (
 
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
-	"github.com/zhengkyl/gol/ui/life"
+	"github.com/zhengkyl/gol/game/life"
 )
 
 type PlayerState struct {
@@ -34,10 +34,12 @@ type Lobby struct {
 	playerColors [11]bool
 	playersMutex sync.RWMutex
 	playerCount  atomic.Int32
-	incrementId  atomic.Int32
+	playerId     atomic.Int32
 	board        [][]life.Cell
 	boardMutex   sync.RWMutex
 	ticker       *time.Ticker
+	name         string
+	id           int
 }
 
 const MaxPlayers = 10
@@ -48,17 +50,6 @@ const drawsPerGeneration = drawRate / generationRate
 
 const defaultWidth = 160
 const defaultHeight = 90
-
-func NewLobby() *Lobby {
-	w, h := defaultWidth, defaultHeight
-
-	return &Lobby{
-		players:      make(map[int]*PlayerState),
-		playerColors: [11]bool{true, false, false, false, false, false, false, false, false, false, false},
-		board:        life.NewBoard(w, h),
-		ticker:       time.NewTicker(time.Second / drawRate),
-	}
-}
 
 func (l *Lobby) PlayerCount() int {
 	return int(l.playerCount.Load())
@@ -93,12 +84,12 @@ type JoinLobbyMsg struct {
 	BoardHeight int
 }
 
-func (l *Lobby) Join(p *tea.Program) (int, bool) {
+func (l *Lobby) Join(p *tea.Program) (int, error) {
 	l.playersMutex.Lock()
 	defer l.playersMutex.Unlock()
 
 	if l.playerCount.Load() == MaxPlayers {
-		return 0, false
+		return 0, fmt.Errorf("Lobby has reached capacity of %v", MaxPlayers)
 	}
 
 	l.playerCount.Add(1)
@@ -106,7 +97,7 @@ func (l *Lobby) Join(p *tea.Program) (int, bool) {
 	posX := rand.Intn(len(l.board))
 	posY := rand.Intn(len(l.board))
 
-	id := int(l.incrementId.Add(1))
+	id := int(l.playerId.Add(1))
 
 	var color int
 	for i := 0; i < 10; i++ {
@@ -130,7 +121,7 @@ func (l *Lobby) Join(p *tea.Program) (int, bool) {
 
 	l.players[id] = &ps
 
-	return id, true
+	return id, nil
 }
 
 func (l *Lobby) Leave(id int) {

@@ -17,8 +17,8 @@ import (
 	bm "github.com/charmbracelet/wish/bubbletea"
 	lm "github.com/charmbracelet/wish/logging"
 	"github.com/muesli/termenv"
-	"github.com/zhengkyl/gol/server/game"
-	"github.com/zhengkyl/gol/ui"
+	"github.com/zhengkyl/gol/game"
+	"github.com/zhengkyl/gol/ui/menu"
 )
 
 const (
@@ -67,45 +67,50 @@ func RunServer() {
 
 func teaHandler(gm *game.Manager) bm.ProgramHandler {
 	return func(s ssh.Session) *tea.Program {
-		pty, _, active := s.Pty()
+		_, _, active := s.Pty()
+		// pty, _, active := s.Pty()
 
 		if !active {
 			wish.Fatalln(s, "l + ratio, no active terminal")
 			return nil
 		}
 
-		ui := ui.New(pty.Window.Width, pty.Window.Height)
-		p := tea.NewProgram(&ui, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
+		// ui := ui.New(pty.Window.Width, pty.Window.Height)
+		// p := tea.NewProgram(&ui, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
+		menu := menu.New(gm)
+		p := tea.NewProgram(menu, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
 
-		go func() {
-			l := gm.FindLobby()
-			id, ok := l.Join(p)
+		gm.Connect(p)
 
-			if !ok {
-				wish.Fatalln(s, fmt.Sprintf("Failed to join. %d/%d players in game. :/", l.PlayerCount(), game.MaxPlayers))
-				return
-			}
+		// go func() {
+		// 	l := gm.FindLobby()
+		// 	id, ok := l.Join(p)
 
-			bw, bh := l.BoardSize()
+		// 	if !ok {
+		// 		wish.Fatalln(s, fmt.Sprintf("Failed to join. %d/%d players in game. :/", l.PlayerCount(), game.MaxPlayers))
+		// 		return
+		// 	}
 
-			ps := l.GetPlayer(id)
+		// 	bw, bh := l.BoardSize()
 
-			if ps == nil {
-				wish.Fatalln(s, "Failed to join. PlayerState not initialized.")
-				return
-			}
+		// 	ps := l.GetPlayer(id)
 
-			p.Send(game.JoinLobbyMsg{
-				Lobby:       l,
-				PlayerState: ps,
-				Id:          id,
-				BoardWidth:  bw,
-				BoardHeight: bh,
-			})
+		// 	if ps == nil {
+		// 		wish.Fatalln(s, "Failed to join. PlayerState not initialized.")
+		// 		return
+		// 	}
 
-			s.Context().SetValue("lobby", l)
-			s.Context().SetValue("playerId", id)
-		}()
+		// 	p.Send(game.JoinLobbyMsg{
+		// 		Lobby:       l,
+		// 		PlayerState: ps,
+		// 		Id:          id,
+		// 		BoardWidth:  bw,
+		// 		BoardHeight: bh,
+		// 	})
+
+		// 	s.Context().SetValue("lobby", l)
+		// 	s.Context().SetValue("playerId", id)
+		// }()
 
 		return p
 	}
@@ -125,20 +130,7 @@ func MiddlewareWithProgramHandler(bth bm.ProgramHandler, cp termenv.Profile, gm 
 						case <-s.Context().Done():
 							if p != nil {
 								p.Quit()
-
-								l, ok := s.Context().Value("lobby").(*game.Lobby)
-								if !ok {
-									return
-								}
-								id, ok := s.Context().Value("playerId").(int)
-								if !ok {
-									return
-								}
-
-								l.Leave(id)
-								if l.PlayerCount() == 0 {
-									gm.EndGame(l)
-								}
+								gm.Disconnect(p)
 								return
 							}
 						case w := <-windowChanges:

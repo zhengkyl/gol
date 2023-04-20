@@ -34,6 +34,7 @@ require (
 	github.com/charmbracelet/lipgloss v0.7.1 // indirect
 	github.com/charmbracelet/log v0.1.2 // indirect
 	github.com/charmbracelet/ssh v0.0.0-20221117183211-483d43d97103 // indirect
+	github.com/dustinkirkland/golang-petname v0.0.0-20191129215211-8e5a1ed0cff0
 	github.com/go-logfmt/logfmt v0.6.0 // indirect
 	github.com/google/go-github v17.0.0+incompatible
 	github.com/google/go-github/v50 v50.2.0
