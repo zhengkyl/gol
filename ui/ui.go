@@ -105,7 +105,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		case key.Matches(msg, keybinds.KeyBinds.Place):
 			m.lobby.Place(m.id)
-		case key.Matches(msg, keybinds.KeyBinds.Pause):
+		case key.Matches(msg, keybinds.KeyBinds.Enter):
 			m.lobby.TogglePause(m.id)
 		}
 	}

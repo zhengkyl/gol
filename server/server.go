@@ -18,6 +18,7 @@ import (
 	lm "github.com/charmbracelet/wish/logging"
 	"github.com/muesli/termenv"
 	"github.com/zhengkyl/gol/game"
+	"github.com/zhengkyl/gol/ui/common"
 	"github.com/zhengkyl/gol/ui/menu"
 )
 
@@ -67,8 +68,8 @@ func RunServer() {
 
 func teaHandler(gm *game.Manager) bm.ProgramHandler {
 	return func(s ssh.Session) *tea.Program {
-		_, _, active := s.Pty()
-		// pty, _, active := s.Pty()
+		// _, _, active := s.Pty()
+		pty, _, active := s.Pty()
 
 		if !active {
 			wish.Fatalln(s, "l + ratio, no active terminal")
@@ -77,7 +78,7 @@ func teaHandler(gm *game.Manager) bm.ProgramHandler {
 
 		// ui := ui.New(pty.Window.Width, pty.Window.Height)
 		// p := tea.NewProgram(&ui, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
-		menu := menu.New(gm)
+		menu := menu.New(common.Common{Width: pty.Window.Width, Height: pty.Window.Height}, gm)
 		p := tea.NewProgram(menu, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
 
 		gm.Connect(p)

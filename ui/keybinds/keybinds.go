@@ -8,7 +8,7 @@ type keyMap struct {
 	Left  key.Binding
 	Right key.Binding
 	Place key.Binding
-	Pause key.Binding
+	Enter key.Binding
 	Help  key.Binding
 	Quit  key.Binding
 	// For help display
@@ -51,7 +51,7 @@ var KeyBinds = keyMap{
 		key.WithKeys(" "),
 		key.WithHelp("<space>", "place"),
 	),
-	Pause: key.NewBinding(
+	Enter: key.NewBinding(
 		key.WithKeys("enter"),
 		key.WithHelp("<enter>", "pause"),
 	),

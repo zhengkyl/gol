@@ -32,7 +32,8 @@ type Manager struct {
 
 func NewManager() *Manager {
 	return &Manager{
-		lobbies: make(map[int]*Lobby),
+		lobbies:  make(map[int]*Lobby),
+		programs: make(map[*tea.Program]programState),
 		// lobbyId: ,
 	}
 }
@@ -71,23 +72,23 @@ func (gm *Manager) NewLobby() *Lobby {
 // }
 
 type LobbyStatus struct {
-	playerCount int
-	maxPlayers  int
-	name        string
-	id          int
+	PlayerCount int
+	MaxPlayers  int
+	Name        string
+	Id          int
 }
 
 // TODO send msg to all programs on menu when jion/leave
 // if lobby is destroyed, pointer is invalid
-func (gm *Manager) LobbyStatuses(g *Lobby) []LobbyStatus {
-	statuses := make([]LobbyStatus, 1)
+func (gm *Manager) LobbyStatuses() []LobbyStatus {
+	statuses := make([]LobbyStatus, 0)
 	gm.lobbiesMutex.RLock()
 	for _, g := range gm.lobbies {
 		statuses = append(statuses, LobbyStatus{
-			playerCount: int(g.playerCount.Load()),
-			maxPlayers:  MaxPlayers,
-			name:        g.name,
-			id:          g.id,
+			PlayerCount: int(g.playerCount.Load()),
+			MaxPlayers:  MaxPlayers,
+			Name:        g.name,
+			Id:          g.id,
 		})
 	}
 	gm.lobbiesMutex.RUnlock()
