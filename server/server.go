@@ -66,9 +66,10 @@ func RunServer() {
 	}
 }
 
+type PlayerId int
+
 func teaHandler(gm *game.Manager) bm.ProgramHandler {
 	return func(s ssh.Session) *tea.Program {
-		// _, _, active := s.Pty()
 		pty, _, active := s.Pty()
 
 		if !active {
@@ -81,7 +82,12 @@ func teaHandler(gm *game.Manager) bm.ProgramHandler {
 		menu := menu.New(common.Common{Width: pty.Window.Width, Height: pty.Window.Height}, gm)
 		p := tea.NewProgram(menu, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
 
-		gm.Connect(p)
+		playerId := gm.Connect(p)
+		s.Context().SetValue("playerId", playerId)
+
+		go func() {
+			p.Send(PlayerId(playerId))
+		}()
 
 		// go func() {
 		// 	l := gm.FindLobby()
@@ -117,7 +123,7 @@ func teaHandler(gm *game.Manager) bm.ProgramHandler {
 	}
 }
 
-// copied from wish/bubbletea b/c need to know when p.Quit() in order to trigger game.Leave()
+// copied from wish/bubbletea b/c need to know when p.Quit() in order to trigger Disconnect()
 func MiddlewareWithProgramHandler(bth bm.ProgramHandler, cp termenv.Profile, gm *game.Manager) wish.Middleware {
 	return func(sh ssh.Handler) ssh.Handler {
 		lipgloss.SetColorProfile(cp)
@@ -131,7 +137,10 @@ func MiddlewareWithProgramHandler(bth bm.ProgramHandler, cp termenv.Profile, gm 
 						case <-s.Context().Done():
 							if p != nil {
 								p.Quit()
-								gm.Disconnect(p)
+								playerId, ok := s.Context().Value("playerId").(int)
+								if ok {
+									gm.Disconnect(playerId)
+								}
 								return
 							}
 						case w := <-windowChanges:

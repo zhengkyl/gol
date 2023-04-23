@@ -12,47 +12,53 @@ import (
 	"github.com/zhengkyl/gol/ui/keybinds"
 )
 
-type model struct {
+type Model struct {
 	gm           *game.Manager
 	common       common.Common
+	lobbyInfos   []game.LobbyInfo
 	options      []listItem
 	activeOption int
 }
 
-func New(common common.Common, gm *game.Manager) *model {
-	return &model{common: common, gm: gm}
-}
-
-func (m *model) SetSize(width, height int) {
-	m.common.Width = width
-	m.common.Height = height
-}
-
-func (m *model) Init() tea.Cmd {
-	return func() tea.Msg {
-		return m.gm.LobbyStatuses()
-	}
-}
-
-func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	switch msg := msg.(type) {
-	case tea.WindowSizeMsg:
-		m.common.Width = msg.Width
-		m.common.Height = msg.Height
-	case []game.LobbyStatus:
-		m.options = make([]listItem, len(msg))
-		m.options = append(m.options, listItem{
+func New(common common.Common, gm *game.Manager) *Model {
+	options := make([]listItem, 2)
+	options = append(options,
+		listItem{
 			titleLeft:  "Play singleplayer game",
 			titleRight: "",
 			descLeft:   "Conway's game of life",
 			descRight:  "",
 		},
-			listItem{
-				titleLeft:  "Create multiplayer lobby",
-				titleRight: "",
-				descLeft:   "Play with up to 10 other players",
-				descRight:  "",
-			})
+		listItem{
+			titleLeft:  "Create multiplayer lobby",
+			titleRight: "",
+			descLeft:   "Play with up to 10 other players",
+			descRight:  "",
+		},
+	)
+	return &Model{common: common, gm: gm, options: options}
+}
+
+func (m *Model) SetSize(width, height int) {
+	m.common.Width = width
+	m.common.Height = height
+}
+
+func (m *Model) Init() tea.Cmd {
+	return func() tea.Msg {
+		return m.gm.LobbyInfos()
+	}
+}
+
+func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+	switch msg := msg.(type) {
+
+	case tea.WindowSizeMsg:
+		m.common.Width = msg.Width
+		m.common.Height = msg.Height
+	case []game.LobbyInfo:
+		m.lobbyInfos = msg
+		m.options = m.options[:2]
 		for _, status := range msg {
 			m.options = append(m.options, listItem{
 				titleLeft:  status.Name,
@@ -67,13 +73,19 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keybinds.KeyBinds.Up):
 			m.activeOption = (m.activeOption - 1 + len(m.options)) % len(m.options)
 		case key.Matches(msg, keybinds.KeyBinds.Enter):
-			// m.gm.JoinLobby() // lobbyId + p *tea.Program
+			switch m.activeOption {
+			case 0:
+			case 1:
+			default:
+				activeId := m.lobbyInfos[m.activeOption-2].Id
+				// m.gm.JoinLobby() // lobbyId + p *tea.Program
+			}
 		}
 	}
 	return m, nil
 }
 
-func combine(left, right string, width int) string {
+func alignLeftRight(left, right string, width int) string {
 	leftW := lipgloss.Width(left)
 	rightW := lipgloss.Width(right)
 
@@ -95,7 +107,7 @@ var titleStyle = lipgloss.NewStyle().Bold(true)
 var activeTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("207"))
 var descStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("254"))
 
-func (m *model) View() string {
+func (m *Model) View() string {
 	viewSb := strings.Builder{}
 	itemSb := strings.Builder{}
 
@@ -107,12 +119,13 @@ func (m *model) View() string {
 			item = activeItemStyle
 		}
 		// factor in border + margin
-		itemSb.WriteString(title.Render(combine(li.titleLeft, li.titleRight, m.common.Width-4)))
+		itemSb.WriteString(title.Render(alignLeftRight(li.titleLeft, li.titleRight, m.common.Width-4)))
 		itemSb.WriteString("\n")
-		itemSb.WriteString(descStyle.Render(combine(li.descLeft, li.descRight, m.common.Width-4)))
+		itemSb.WriteString(descStyle.Render(alignLeftRight(li.descLeft, li.descRight, m.common.Width-4)))
 
 		viewSb.WriteString(item.Render(itemSb.String()))
 		viewSb.WriteString("\n")
+
 		itemSb.Reset()
 	}
 

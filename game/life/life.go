@@ -1,6 +1,5 @@
 package life
 
-// change to int or struct for customization
 const DeadPlayer = 0
 
 type Cell struct {

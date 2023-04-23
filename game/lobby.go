@@ -6,7 +6,6 @@ import (
 	"sort"
 	"strings"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	tea "github.com/charmbracelet/bubbletea"
@@ -33,8 +32,7 @@ type Lobby struct {
 	players      map[int]*PlayerState
 	playerColors [11]bool
 	playersMutex sync.RWMutex
-	playerCount  atomic.Int32
-	playerId     atomic.Int32
+	playerCount  int
 	board        [][]life.Cell
 	boardMutex   sync.RWMutex
 	ticker       *time.Ticker
@@ -52,7 +50,8 @@ const defaultWidth = 160
 const defaultHeight = 90
 
 func (l *Lobby) PlayerCount() int {
-	return int(l.playerCount.Load())
+	// TODO mutex or atomic
+	return l.playerCount
 }
 
 func (l *Lobby) Run() {
@@ -84,34 +83,29 @@ type JoinLobbyMsg struct {
 	BoardHeight int
 }
 
-func (l *Lobby) Join(p *tea.Program) (int, error) {
+func (l *Lobby) Join(playerId int, p *tea.Program) error {
 	l.playersMutex.Lock()
 	defer l.playersMutex.Unlock()
 
-	if l.playerCount.Load() == MaxPlayers {
-		return 0, fmt.Errorf("Lobby has reached capacity of %v", MaxPlayers)
+	if l.playerCount == MaxPlayers {
+		return fmt.Errorf("Lobby has reached capacity of %v", MaxPlayers)
 	}
 
-	l.playerCount.Add(1)
+	l.playerCount++
 
 	posX := rand.Intn(len(l.board))
 	posY := rand.Intn(len(l.board))
 
-	id := int(l.playerId.Add(1))
-
 	var color int
-	for i := 0; i < 10; i++ {
-		// id starts at 1, so in range [1, 10]
-		// this cycles through all colors, even when players leave
-		color = (i + id) % 11
-		if !l.playerColors[color] {
-			l.playerColors[color] = true
+	for i := 1; i <= 11; i++ {
+		if !l.playerColors[i] {
+			l.playerColors[i] = true
 			break
 		}
 	}
 
 	ps := PlayerState{
-		Id:      id,
+		Id:      playerId,
 		Program: p,
 		PosX:    posX,
 		PosY:    posY,
@@ -119,26 +113,29 @@ func (l *Lobby) Join(p *tea.Program) (int, error) {
 		Color:   color,
 	}
 
-	l.players[id] = &ps
+	l.players[playerId] = &ps
 
-	return id, nil
+	// TODO
+	p.Send(JoinLobbyMsg{})
+
+	return nil
 }
 
-func (l *Lobby) Leave(id int) {
+func (l *Lobby) Leave(playerId int) {
 
 	l.playersMutex.Lock()
 	defer l.playersMutex.Unlock()
 	l.boardMutex.Lock()
 	defer l.boardMutex.Unlock()
 
-	l.playerCount.Add(-1)
+	l.playerCount--
 
-	l.playerColors[l.players[id].Color] = false
-	delete(l.players, id)
+	l.playerColors[l.players[playerId].Color] = false
+	delete(l.players, playerId)
 
 	for y, row := range l.board {
 		for x, cell := range row {
-			if cell.Player == id {
+			if cell.Player == playerId {
 				l.board[y][x].Player = life.DeadPlayer
 				l.board[y][x].PausedPlayer = life.DeadPlayer
 			}
