@@ -18,8 +18,7 @@ import (
 	lm "github.com/charmbracelet/wish/logging"
 	"github.com/muesli/termenv"
 	"github.com/zhengkyl/gol/game"
-	"github.com/zhengkyl/gol/ui/common"
-	"github.com/zhengkyl/gol/ui/menu"
+	"github.com/zhengkyl/gol/ui"
 )
 
 const (
@@ -66,8 +65,6 @@ func RunServer() {
 	}
 }
 
-type PlayerId int
-
 func teaHandler(gm *game.Manager) bm.ProgramHandler {
 	return func(s ssh.Session) *tea.Program {
 		pty, _, active := s.Pty()
@@ -77,16 +74,14 @@ func teaHandler(gm *game.Manager) bm.ProgramHandler {
 			return nil
 		}
 
-		// ui := ui.New(pty.Window.Width, pty.Window.Height)
-		// p := tea.NewProgram(&ui, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
-		menu := menu.New(common.Common{Width: pty.Window.Width, Height: pty.Window.Height}, gm)
-		p := tea.NewProgram(menu, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
+		model := ui.New(pty.Window.Width, pty.Window.Height)
+		p := tea.NewProgram(&model, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
 
 		playerId := gm.Connect(p)
 		s.Context().SetValue("playerId", playerId)
 
 		go func() {
-			p.Send(PlayerId(playerId))
+			p.Send(ui.PlayerId(playerId))
 		}()
 
 		// go func() {

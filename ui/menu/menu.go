@@ -13,6 +13,7 @@ import (
 )
 
 type Model struct {
+	playerId     int
 	gm           *game.Manager
 	common       common.Common
 	lobbyInfos   []game.LobbyInfo
@@ -20,7 +21,7 @@ type Model struct {
 	activeOption int
 }
 
-func New(common common.Common, gm *game.Manager) *Model {
+func New(common common.Common, gm *game.Manager, playerId int) *Model {
 	options := make([]listItem, 2)
 	options = append(options,
 		listItem{
@@ -36,7 +37,7 @@ func New(common common.Common, gm *game.Manager) *Model {
 			descRight:  "",
 		},
 	)
-	return &Model{common: common, gm: gm, options: options}
+	return &Model{common: common, gm: gm, options: options, playerId: playerId}
 }
 
 func (m *Model) SetSize(width, height int) {
@@ -78,7 +79,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			case 1:
 			default:
 				activeId := m.lobbyInfos[m.activeOption-2].Id
-				// m.gm.JoinLobby() // lobbyId + p *tea.Program
+				return m, func() tea.Msg { return m.gm.JoinLobby(activeId, m.playerId) }
 			}
 		}
 	}

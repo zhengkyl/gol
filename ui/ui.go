@@ -4,7 +4,6 @@ import (
 	"github.com/charmbracelet/bubbles/key"
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/zhengkyl/gol/game"
-	"github.com/zhengkyl/gol/server"
 	"github.com/zhengkyl/gol/ui/common"
 	"github.com/zhengkyl/gol/ui/keybinds"
 	"github.com/zhengkyl/gol/ui/menu"
@@ -13,12 +12,14 @@ import (
 type screen int
 
 const (
-	menuScreen screen = iota
+	loadingScreen screen = iota
+	menuScreen
 	singleplayerScreen
 	multiplayerScreen
 )
 
 type model struct {
+	common   common.Common
 	playerId int
 	manager  game.Manager
 	menu     *menu.Model
@@ -27,15 +28,9 @@ type model struct {
 }
 
 func New(width, height int) model {
-	common := common.Common{
-		Width:  width,
-		Height: height,
-	}
-	gm := game.NewManager()
-
 	return model{
-		menu:   menu.New(common, gm),
-		screen: menuScreen,
+		screen: loadingScreen,
+		common: common.Common{Width: width, Height: height},
 	}
 }
 
@@ -43,11 +38,17 @@ func (m *model) Init() tea.Cmd {
 	return nil
 }
 
+type PlayerId int
+
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-	case server.PlayerId:
+	case PlayerId:
 		m.playerId = int(msg)
-	case game.JoinLobbyMsg:
+
+		gm := game.NewManager()
+		m.menu = menu.New(m.common, gm, m.playerId)
+
+	case game.JoinSuccessMsg:
 		// switch to game view
 	// case game.SoloGameMsg:
 	// switch to solo game view
@@ -63,8 +64,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m.game.Update(msg)
 	case multiplayerScreen:
 		return m.game.Update(msg)
-	default:
+	case menuScreen:
 		return m.menu.Update(msg)
+	default:
+		return m, nil
 	}
 }
 
@@ -74,7 +77,9 @@ func (m *model) View() string {
 		return m.game.View()
 	case multiplayerScreen:
 		return m.game.View()
-	default:
+	case menuScreen:
 		return m.menu.View()
+	default:
+		return "Loading..."
 	}
 }

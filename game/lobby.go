@@ -75,14 +75,6 @@ func (l *Lobby) Run() {
 	}()
 }
 
-type JoinLobbyMsg struct {
-	Lobby       *Lobby
-	PlayerState *PlayerState
-	Id          int
-	BoardWidth  int
-	BoardHeight int
-}
-
 func (l *Lobby) Join(playerId int, p *tea.Program) error {
 	l.playersMutex.Lock()
 	defer l.playersMutex.Unlock()
@@ -115,8 +107,7 @@ func (l *Lobby) Join(playerId int, p *tea.Program) error {
 
 	l.players[playerId] = &ps
 
-	// TODO
-	p.Send(JoinLobbyMsg{})
+	// p.Send(JoinLobbyMsg{})
 
 	return nil
 }

@@ -48,7 +48,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case game.JoinLobbyMsg:
+	case game.JoinSuccessMsg:
 		m.lobby = msg.Lobby
 		m.id = msg.Id
 		m.playerState = msg.PlayerState

@@ -141,13 +141,24 @@ func (gm *Manager) Disconnect(playerId int) {
 	delete(gm.players, playerId)
 }
 
-func (gm *Manager) JoinLobby(lobbyId int, playerId int) (int, error) {
+type JoinSuccessMsg struct {
+	Lobby       *Lobby
+	PlayerState *PlayerState
+	Id          int
+	BoardWidth  int
+	BoardHeight int
+}
+type JoinFailMsg struct {
+	err string
+}
+
+func (gm *Manager) JoinLobby(lobbyId int, playerId int) tea.Msg {
 	gm.lobbiesMutex.RLock()
 	lobby, ok := gm.lobbies[lobbyId]
 	gm.lobbiesMutex.RUnlock()
 
 	if !ok {
-		return 0, fmt.Errorf("Lobby with id=%v does not exist", lobbyId)
+		return JoinFailMsg{fmt.Sprintf("Lobby with id=%v does not exist", lobbyId)}
 	}
 
 	gm.playersMutex.Lock()
@@ -156,12 +167,12 @@ func (gm *Manager) JoinLobby(lobbyId int, playerId int) (int, error) {
 	program := gm.players[playerId].program
 	err := lobby.Join(playerId, program)
 	if err != nil {
-		return 0, err
+		return JoinFailMsg{err.Error()}
 	}
 
 	gm.players[playerId] = programState{program: program, lobbyId: lobbyId}
 
-	return playerId, nil
+	return JoinSuccessMsg{}
 }
 
 func (gm *Manager) removeFromLobby(lobbyId, playerId int) {
