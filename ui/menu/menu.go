@@ -22,7 +22,7 @@ type Model struct {
 }
 
 func New(common common.Common, gm *game.Manager, playerId int) *Model {
-	options := make([]listItem, 2)
+	options := make([]listItem, 0, 2)
 	options = append(options,
 		listItem{
 			titleLeft:  "Play singleplayer game",
@@ -58,6 +58,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.common.Width = msg.Width
 		m.common.Height = msg.Height
 	case []game.LobbyInfo:
+		// return m, tea.Quit
 		m.lobbyInfos = msg
 		m.options = m.options[:2]
 		for _, status := range msg {
@@ -76,10 +77,13 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keybinds.KeyBinds.Enter):
 			switch m.activeOption {
 			case 0:
+				// m.gm.BroadcastLobbyInfos()
 			case 1:
+				m.gm.CreateLobby()
 			default:
-				activeId := m.lobbyInfos[m.activeOption-2].Id
-				return m, func() tea.Msg { return m.gm.JoinLobby(activeId, m.playerId) }
+				// return m, tea.Quit
+				// activeId := m.lobbyInfos[m.activeOption-2].Id
+				// return m, func() tea.Msg { return m.gm.JoinLobby(activeId, m.playerId) }
 			}
 		}
 	}
@@ -111,6 +115,9 @@ var descStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("254"))
 func (m *Model) View() string {
 	viewSb := strings.Builder{}
 	itemSb := strings.Builder{}
+
+	// viewSb.WriteString(fmt.Sprint(m.gm.LobbyInfos()))
+	// viewSb.WriteString(m.gm.Debug())
 
 	for i, li := range m.options {
 		title := titleStyle

@@ -37,7 +37,7 @@ func NewManager() *Manager {
 	}
 }
 
-func (gm *Manager) NewLobby() *Lobby {
+func (gm *Manager) CreateLobby() {
 	w, h := defaultWidth, defaultHeight
 
 	l := &Lobby{
@@ -54,9 +54,7 @@ func (gm *Manager) NewLobby() *Lobby {
 	gm.lobbies[l.id] = l
 	gm.lobbiesMutex.Unlock()
 
-	gm.broadcastLobbyInfos()
-
-	return l
+	gm.BroadcastLobbyInfos()
 }
 
 // TODO maybe auto find lobby button?
@@ -77,6 +75,8 @@ func (gm *Manager) NewLobby() *Lobby {
 // 	return g
 // }
 
+type LobbyInfoList []LobbyInfo
+
 type LobbyInfo struct {
 	PlayerCount int
 	MaxPlayers  int
@@ -84,16 +84,25 @@ type LobbyInfo struct {
 	Id          int
 }
 
-func (gm *Manager) broadcastLobbyInfos() {
+func (gm *Manager) BroadcastLobbyInfos() {
 	infos := gm.LobbyInfos()
 
 	gm.playersMutex.RLock()
 	for _, ps := range gm.players {
 		if ps.lobbyId == lobbyIdMenu {
-			ps.program.Send(infos)
+			go func(p *tea.Program) {
+				p.Send(infos)
+			}(ps.program)
 		}
 	}
 	gm.playersMutex.RUnlock()
+}
+
+func (gm *Manager) Debug() string {
+
+	gm.playersMutex.RLock()
+	defer gm.playersMutex.RUnlock()
+	return fmt.Sprint(gm.players)
 }
 
 func (gm *Manager) LobbyInfos() []LobbyInfo {
@@ -194,7 +203,7 @@ func (gm *Manager) removeFromLobby(lobbyId, playerId int) {
 		delete(gm.lobbies, lobbyId)
 		gm.lobbiesMutex.Unlock()
 
-		gm.broadcastLobbyInfos()
+		gm.BroadcastLobbyInfos()
 	}
 
 }

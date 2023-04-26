@@ -21,16 +21,17 @@ const (
 type model struct {
 	common   common.Common
 	playerId int
-	manager  game.Manager
+	gm       *game.Manager
 	menu     *menu.Model
 	game     tea.Model
 	screen   screen
 }
 
-func New(width, height int) model {
+func New(width, height int, gm *game.Manager) model {
 	return model{
 		screen: loadingScreen,
 		common: common.Common{Width: width, Height: height},
+		gm:     gm,
 	}
 }
 
@@ -41,34 +42,35 @@ func (m *model) Init() tea.Cmd {
 type PlayerId int
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
+
 	switch msg := msg.(type) {
 	case PlayerId:
 		m.playerId = int(msg)
 
-		gm := game.NewManager()
-		m.menu = menu.New(m.common, gm, m.playerId)
-
+		m.menu = menu.New(m.common, m.gm, m.playerId)
+		m.screen = menuScreen
 	case game.JoinSuccessMsg:
 		// switch to game view
 	// case game.SoloGameMsg:
 	// switch to solo game view
 	case tea.KeyMsg:
+		// TODO disconnect or let it handle itself?
 		if key.Matches(msg, keybinds.KeyBinds.Quit) {
 			// TODO disconnect or let it handle itself?
 			return m, tea.Quit
 		}
 	}
 
+	var cmd tea.Cmd
 	switch m.screen {
 	case singleplayerScreen:
-		return m.game.Update(msg)
+		_, cmd = m.game.Update(msg)
 	case multiplayerScreen:
-		return m.game.Update(msg)
+		_, cmd = m.game.Update(msg)
 	case menuScreen:
-		return m.menu.Update(msg)
-	default:
-		return m, nil
+		_, cmd = m.menu.Update(msg)
 	}
+	return m, cmd
 }
 
 func (m *model) View() string {

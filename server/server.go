@@ -74,7 +74,7 @@ func teaHandler(gm *game.Manager) bm.ProgramHandler {
 			return nil
 		}
 
-		model := ui.New(pty.Window.Width, pty.Window.Height)
+		model := ui.New(pty.Window.Width, pty.Window.Height, gm)
 		p := tea.NewProgram(&model, tea.WithInput(s), tea.WithOutput(s), tea.WithAltScreen())
 
 		playerId := gm.Connect(p)
