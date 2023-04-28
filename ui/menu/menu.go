@@ -93,14 +93,12 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keybinds.KeyBinds.Enter):
 			switch m.activeIndex {
 			case 0:
-				// m.gm.BroadcastLobbyInfos()
 			case 1:
 				lid := m.gm.CreateLobby()
-				m.gm.JoinLobby(lid, m.playerId)
+				return m, func() tea.Msg { return m.gm.JoinLobby(lid, m.playerId) }
 			default:
-				// return m, tea.Quit
-				// activeId := m.lobbyInfos[m.activeOption-2].Id
-				// return m, func() tea.Msg { return m.gm.JoinLobby(activeId, m.playerId) }
+				activeId := m.lobbyInfos[m.activeIndex-2].Id
+				return m, func() tea.Msg { return m.gm.JoinLobby(activeId, m.playerId) }
 			}
 		}
 	}

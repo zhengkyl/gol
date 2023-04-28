@@ -2,6 +2,7 @@ package game
 
 import (
 	"fmt"
+	"sort"
 	"sync"
 	"time"
 
@@ -56,6 +57,8 @@ func (gm *Manager) CreateLobby() int {
 
 	gm.BroadcastLobbyInfos()
 
+	l.Run()
+
 	return l.id
 }
 
@@ -107,6 +110,17 @@ func (gm *Manager) Debug() string {
 	return fmt.Sprint(gm.players)
 }
 
+type byId []LobbyInfo
+
+func (s byId) Len() int {
+	return len(s)
+}
+func (s byId) Swap(i, j int) {
+	s[i], s[j] = s[j], s[i]
+}
+func (s byId) Less(i, j int) bool {
+	return s[i].Id < s[j].Id
+}
 func (gm *Manager) LobbyInfos() []LobbyInfo {
 	infos := make([]LobbyInfo, 0)
 	gm.lobbiesMutex.RLock()
@@ -119,6 +133,8 @@ func (gm *Manager) LobbyInfos() []LobbyInfo {
 		})
 	}
 	gm.lobbiesMutex.RUnlock()
+
+	sort.Sort(byId(infos))
 	return infos
 }
 
@@ -138,9 +154,9 @@ func (gm *Manager) Connect(p *tea.Program) int {
 
 func (gm *Manager) Disconnect(playerId int) {
 	gm.playersMutex.Lock()
-	defer gm.playersMutex.Unlock()
-
 	state, ok := gm.players[playerId]
+	gm.playersMutex.Unlock()
+
 	if !ok {
 		return // maybe disconnect before connect? idk if possible
 	}
@@ -173,17 +189,28 @@ func (gm *Manager) JoinLobby(lobbyId int, playerId int) tea.Msg {
 	}
 
 	gm.playersMutex.Lock()
-	defer gm.playersMutex.Unlock()
 
 	program := gm.players[playerId].program
-	err := lobby.Join(playerId, program)
+	ps, err := lobby.Join(playerId, program)
 	if err != nil {
+		gm.playersMutex.Unlock()
 		return JoinFailMsg{err.Error()}
 	}
 
 	gm.players[playerId] = programState{program: program, lobbyId: lobbyId}
 
-	return JoinSuccessMsg{}
+	gm.playersMutex.Unlock()
+	bw, bh := lobby.BoardSize()
+
+	gm.BroadcastLobbyInfos()
+
+	return JoinSuccessMsg{
+		Lobby:       lobby,
+		PlayerState: ps,
+		Id:          lobbyId,
+		BoardWidth:  bw,
+		BoardHeight: bh,
+	}
 }
 
 func (gm *Manager) removeFromLobby(lobbyId, playerId int) {
@@ -204,9 +231,9 @@ func (gm *Manager) removeFromLobby(lobbyId, playerId int) {
 		gm.lobbiesMutex.Lock()
 		delete(gm.lobbies, lobbyId)
 		gm.lobbiesMutex.Unlock()
-
-		gm.BroadcastLobbyInfos()
 	}
+
+	gm.BroadcastLobbyInfos()
 
 }
 

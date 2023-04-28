@@ -75,12 +75,12 @@ func (l *Lobby) Run() {
 	}()
 }
 
-func (l *Lobby) Join(playerId int, p *tea.Program) error {
+func (l *Lobby) Join(playerId int, p *tea.Program) (*PlayerState, error) {
 	l.playersMutex.Lock()
 	defer l.playersMutex.Unlock()
 
 	if l.playerCount == MaxPlayers {
-		return fmt.Errorf("Lobby has reached capacity of %v", MaxPlayers)
+		return nil, fmt.Errorf("Lobby has reached capacity of %v", MaxPlayers)
 	}
 
 	l.playerCount++
@@ -92,11 +92,12 @@ func (l *Lobby) Join(playerId int, p *tea.Program) error {
 	for i := 1; i <= 11; i++ {
 		if !l.playerColors[i] {
 			l.playerColors[i] = true
+			color = i
 			break
 		}
 	}
 
-	ps := PlayerState{
+	ps := &PlayerState{
 		Id:      playerId,
 		Program: p,
 		PosX:    posX,
@@ -105,11 +106,11 @@ func (l *Lobby) Join(playerId int, p *tea.Program) error {
 		Color:   color,
 	}
 
-	l.players[playerId] = &ps
+	l.players[playerId] = ps
 
 	// p.Send(JoinLobbyMsg{})
 
-	return nil
+	return ps, nil
 }
 
 func (l *Lobby) Leave(playerId int) {

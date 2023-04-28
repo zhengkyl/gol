@@ -8,6 +8,7 @@ import (
 	tea "github.com/charmbracelet/bubbletea"
 	"github.com/charmbracelet/lipgloss"
 	"github.com/zhengkyl/gol/game"
+	"github.com/zhengkyl/gol/ui/common"
 	"github.com/zhengkyl/gol/ui/keybinds"
 )
 
@@ -22,17 +23,26 @@ type model struct {
 	viewportHeight int
 	viewportPosY   int
 	viewportPosX   int
+	updates        int
 	//
 }
 
-func New(width, height int) model {
+func New(c common.Common, msg game.JoinSuccessMsg) *model {
 
-	vw := width / 2
-	vh := height - 2
+	vw := c.Width / 2
+	vh := c.Height - 2
 
-	return model{
+	return &model{
 		viewportWidth:  vw,
 		viewportHeight: vh,
+
+		lobby:        msg.Lobby,
+		id:           msg.Id,
+		playerState:  msg.PlayerState,
+		boardWidth:   msg.BoardWidth,
+		boardHeight:  msg.BoardHeight,
+		viewportPosY: mod(msg.PlayerState.PosY-vh/2, msg.BoardHeight), // THIS IS THE LINE,
+		viewportPosX: mod(msg.PlayerState.PosX-vw/2, msg.BoardWidth),
 		// asdf: help.New()
 	}
 }
@@ -48,16 +58,8 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	case game.JoinSuccessMsg:
-		m.lobby = msg.Lobby
-		m.id = msg.Id
-		m.playerState = msg.PlayerState
-		m.boardWidth = msg.BoardWidth
-		m.boardHeight = msg.BoardHeight
-
-		m.viewportPosY = mod(m.playerState.PosY-m.viewportHeight/2, m.boardHeight) // THIS IS THE LINE
-		m.viewportPosX = mod(m.playerState.PosX-m.viewportWidth/2, m.boardWidth)
-		return m, nil
+	// case game.JoinSuccessMsg:
+	// 	return m, nil
 
 	case tea.WindowSizeMsg:
 		m.viewportWidth = msg.Width / 2
@@ -68,6 +70,7 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// }
 
 	case game.UpdateBoardMsg:
+		m.updates++
 		// do nothing? just rerender
 	case tea.KeyMsg:
 		switch {

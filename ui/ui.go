@@ -7,6 +7,7 @@ import (
 	"github.com/zhengkyl/gol/ui/common"
 	"github.com/zhengkyl/gol/ui/keybinds"
 	"github.com/zhengkyl/gol/ui/menu"
+	"github.com/zhengkyl/gol/ui/multiplayer"
 )
 
 type screen int
@@ -54,6 +55,10 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 	case game.JoinSuccessMsg:
 		// switch to game view
+		m.game = multiplayer.New(common.Common{
+			Width: m.common.Width, Height: m.common.Height,
+		}, msg)
+		m.screen = multiplayerScreen
 	// case game.SoloGameMsg:
 	// switch to solo game view
 	case tea.KeyMsg:
