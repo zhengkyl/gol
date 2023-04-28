@@ -49,6 +49,9 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		m.menu = menu.New(m.common, m.gm, m.playerId)
 		m.screen = menuScreen
+
+		return m, m.menu.Init()
+
 	case game.JoinSuccessMsg:
 		// switch to game view
 	// case game.SoloGameMsg:

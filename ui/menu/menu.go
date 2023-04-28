@@ -13,12 +13,14 @@ import (
 )
 
 type Model struct {
-	playerId     int
-	gm           *game.Manager
-	common       common.Common
-	lobbyInfos   []game.LobbyInfo
-	options      []listItem
-	activeOption int
+	playerId       int
+	gm             *game.Manager
+	common         common.Common
+	lobbyInfos     []game.LobbyInfo
+	options        []listItem
+	activeIndex    int
+	scrollIndex    int
+	visibleOptions int
 }
 
 func New(common common.Common, gm *game.Manager, playerId int) *Model {
@@ -37,12 +39,15 @@ func New(common common.Common, gm *game.Manager, playerId int) *Model {
 			descRight:  "",
 		},
 	)
+
 	return &Model{common: common, gm: gm, options: options, playerId: playerId}
 }
 
 func (m *Model) SetSize(width, height int) {
 	m.common.Width = width
 	m.common.Height = height
+
+	m.visibleOptions = (height - 1) / 4
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -55,31 +60,43 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
-		m.common.Width = msg.Width
-		m.common.Height = msg.Height
+		m.SetSize(msg.Width, msg.Height)
 	case []game.LobbyInfo:
 		// return m, tea.Quit
 		m.lobbyInfos = msg
 		m.options = m.options[:2]
 		for _, status := range msg {
 			m.options = append(m.options, listItem{
-				titleLeft:  status.Name,
-				titleRight: fmt.Sprintf("%v/%v", status.PlayerCount, status.MaxPlayers),
+				titleLeft:  fmt.Sprintf("Join %v-%v", status.Name, status.Id),
+				titleRight: fmt.Sprintf("Online %v/%v", status.PlayerCount, status.MaxPlayers),
 				descLeft:   fmt.Sprint(status.Id),
 			})
 		}
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, keybinds.KeyBinds.Down):
-			m.activeOption = (m.activeOption + 1 + len(m.options)) % len(m.options)
+			m.activeIndex = (m.activeIndex + 1 + len(m.options)) % len(m.options)
+			if m.activeIndex < m.scrollIndex {
+				m.scrollIndex = m.activeIndex
+			}
+			if m.activeIndex >= m.scrollIndex+m.visibleOptions {
+				m.scrollIndex = m.activeIndex - m.visibleOptions + 1
+			}
 		case key.Matches(msg, keybinds.KeyBinds.Up):
-			m.activeOption = (m.activeOption - 1 + len(m.options)) % len(m.options)
+			m.activeIndex = (m.activeIndex - 1 + len(m.options)) % len(m.options)
+			if m.activeIndex < m.scrollIndex {
+				m.scrollIndex = m.activeIndex
+			}
+			if m.activeIndex >= m.scrollIndex+m.visibleOptions {
+				m.scrollIndex = m.activeIndex - m.visibleOptions + 1
+			}
 		case key.Matches(msg, keybinds.KeyBinds.Enter):
-			switch m.activeOption {
+			switch m.activeIndex {
 			case 0:
 				// m.gm.BroadcastLobbyInfos()
 			case 1:
-				m.gm.CreateLobby()
+				lid := m.gm.CreateLobby()
+				m.gm.JoinLobby(lid, m.playerId)
 			default:
 				// return m, tea.Quit
 				// activeId := m.lobbyInfos[m.activeOption-2].Id
@@ -106,11 +123,13 @@ func alignLeftRight(left, right string, width int) string {
 	}
 }
 
-var itemStyle = lipgloss.NewStyle().Border(lipgloss.HiddenBorder(), true).Padding(0, 1)
-var activeItemStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).Padding(0, 1)
-var titleStyle = lipgloss.NewStyle().Bold(true)
-var activeTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("207"))
-var descStyle = lipgloss.NewStyle().Foreground(lipgloss.Color("254"))
+var (
+	itemStyle        = lipgloss.NewStyle().Border(lipgloss.HiddenBorder(), true).Padding(0, 1)
+	activeItemStyle  = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).Padding(0, 1)
+	titleStyle       = lipgloss.NewStyle().Bold(true)
+	activeTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("207"))
+	descStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("254"))
+)
 
 func (m *Model) View() string {
 	viewSb := strings.Builder{}
@@ -118,11 +137,13 @@ func (m *Model) View() string {
 
 	// viewSb.WriteString(fmt.Sprint(m.gm.LobbyInfos()))
 	// viewSb.WriteString(m.gm.Debug())
+	// viewSb.WriteString(fmt.Sprint(m.visibleOptions))
 
-	for i, li := range m.options {
+	for i := m.scrollIndex; i < m.scrollIndex+m.visibleOptions && i < len(m.options); i++ {
+		li := m.options[i]
 		title := titleStyle
 		item := itemStyle
-		if i == m.activeOption {
+		if i == m.activeIndex {
 			title = activeTitleStyle
 			item = activeItemStyle
 		}

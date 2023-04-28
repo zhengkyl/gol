@@ -37,7 +37,7 @@ func NewManager() *Manager {
 	}
 }
 
-func (gm *Manager) CreateLobby() {
+func (gm *Manager) CreateLobby() int {
 	w, h := defaultWidth, defaultHeight
 
 	l := &Lobby{
@@ -45,7 +45,7 @@ func (gm *Manager) CreateLobby() {
 		playerColors: [11]bool{true, false, false, false, false, false, false, false, false, false, false},
 		board:        life.NewBoard(w, h),
 		ticker:       time.NewTicker(time.Second / drawRate),
-		name:         petname.Generate(2, " "),
+		name:         petname.Generate(2, "-"),
 	}
 
 	gm.lobbiesMutex.Lock()
@@ -55,6 +55,8 @@ func (gm *Manager) CreateLobby() {
 	gm.lobbiesMutex.Unlock()
 
 	gm.BroadcastLobbyInfos()
+
+	return l.id
 }
 
 // TODO maybe auto find lobby button?
