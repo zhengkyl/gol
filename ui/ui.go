@@ -8,6 +8,7 @@ import (
 	"github.com/zhengkyl/gol/ui/keybinds"
 	"github.com/zhengkyl/gol/ui/menu"
 	"github.com/zhengkyl/gol/ui/multiplayer"
+	"github.com/zhengkyl/gol/ui/singleplayer"
 )
 
 type screen int
@@ -59,7 +60,11 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			Width: m.common.Width, Height: m.common.Height,
 		}, msg)
 		m.screen = multiplayerScreen
-	// case game.SoloGameMsg:
+	case game.SoloGameMsg:
+
+		m.game = singleplayer.New(m.common.Width/2, m.common.Height)
+
+		m.screen = singleplayerScreen
 	// switch to solo game view
 	case tea.KeyMsg:
 		// TODO disconnect or let it handle itself?

@@ -93,6 +93,7 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		case key.Matches(msg, keybinds.KeyBinds.Enter):
 			switch m.activeIndex {
 			case 0:
+				return m, func() tea.Msg { return game.SoloGameMsg{} }
 			case 1:
 				lid := m.gm.CreateLobby()
 				return m, func() tea.Msg { return m.gm.JoinLobby(lid, m.playerId) }

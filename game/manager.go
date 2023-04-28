@@ -80,6 +80,7 @@ func (gm *Manager) CreateLobby() int {
 // 	return g
 // }
 
+type SoloGameMsg struct{}
 type LobbyInfoList []LobbyInfo
 
 type LobbyInfo struct {
