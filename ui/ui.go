@@ -55,22 +55,22 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		return m, m.menu.Init()
 
 	case game.JoinSuccessMsg:
-		// switch to game view
 		m.game = multiplayer.New(common.Common{
 			Width: m.common.Width, Height: m.common.Height,
 		}, msg)
 		m.screen = multiplayerScreen
 	case game.SoloGameMsg:
-
 		m.game = singleplayer.New(m.common.Width/2, m.common.Height)
-
 		m.screen = singleplayerScreen
-	// switch to solo game view
 	case tea.KeyMsg:
-		// TODO disconnect or let it handle itself?
 		if key.Matches(msg, keybinds.KeyBinds.Quit) {
-			// TODO disconnect or let it handle itself?
 			return m, tea.Quit
+		}
+		if key.Matches(msg, keybinds.KeyBinds.Esc) {
+			m.gm.LeaveLobby(m.playerId)
+			m.game = nil
+			m.screen = menuScreen
+			return m, nil
 		}
 	}
 

@@ -116,9 +116,8 @@ func (m *model) View() string {
 
 	status := "Playing"
 	if m.paused {
-		status = "Paused"
+		status = "Paused "
 	}
-	sb.WriteString(status)
-
+	sb.WriteString(status + "  •  wasd/hjkl/←↑↓→ move  •  <space> place  •  <enter> play/pause  •  <esc> menu")
 	return sb.String()
 }

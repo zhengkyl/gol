@@ -84,36 +84,6 @@ func teaHandler(gm *game.Manager) bm.ProgramHandler {
 			p.Send(ui.PlayerId(playerId))
 		}()
 
-		// go func() {
-		// 	l := gm.FindLobby()
-		// 	id, ok := l.Join(p)
-
-		// 	if !ok {
-		// 		wish.Fatalln(s, fmt.Sprintf("Failed to join. %d/%d players in game. :/", l.PlayerCount(), game.MaxPlayers))
-		// 		return
-		// 	}
-
-		// 	bw, bh := l.BoardSize()
-
-		// 	ps := l.GetPlayer(id)
-
-		// 	if ps == nil {
-		// 		wish.Fatalln(s, "Failed to join. PlayerState not initialized.")
-		// 		return
-		// 	}
-
-		// 	p.Send(game.JoinLobbyMsg{
-		// 		Lobby:       l,
-		// 		PlayerState: ps,
-		// 		Id:          id,
-		// 		BoardWidth:  bw,
-		// 		BoardHeight: bh,
-		// 	})
-
-		// 	s.Context().SetValue("lobby", l)
-		// 	s.Context().SetValue("playerId", id)
-		// }()
-
 		return p
 	}
 }

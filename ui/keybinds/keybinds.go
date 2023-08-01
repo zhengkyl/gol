@@ -11,6 +11,7 @@ type keyMap struct {
 	Enter key.Binding
 	Help  key.Binding
 	Quit  key.Binding
+	Esc   key.Binding
 	// For help display
 	// Move key.Binding
 }
@@ -60,7 +61,11 @@ var KeyBinds = keyMap{
 		key.WithHelp("?", "toggle help"),
 	),
 	Quit: key.NewBinding(
-		key.WithKeys("q", "esc", "ctrl+c"),
+		key.WithKeys("q", "ctrl+c"),
 		key.WithHelp("q", "quit"),
+	),
+	Esc: key.NewBinding(
+		key.WithKeys("esc"),
+		key.WithHelp("<esc>", "esc"),
 	),
 }

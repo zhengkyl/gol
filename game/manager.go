@@ -34,7 +34,6 @@ func NewManager() *Manager {
 	return &Manager{
 		lobbies: make(map[int]*Lobby),
 		players: make(map[int]programState),
-		// lobbyId: ,
 	}
 }
 
@@ -169,6 +168,23 @@ func (gm *Manager) Disconnect(playerId int) {
 	delete(gm.players, playerId)
 }
 
+func (gm *Manager) LeaveLobby(playerId int) {
+	gm.playersMutex.Lock()
+	state, ok := gm.players[playerId]
+	if ok {
+		gm.players[playerId] = programState{lobbyId: lobbyIdMenu, program: state.program}
+	}
+	gm.playersMutex.Unlock()
+
+	if !ok {
+		return
+	}
+
+	if state.lobbyId >= 0 {
+		gm.removeFromLobby(state.lobbyId, playerId)
+	}
+}
+
 type JoinSuccessMsg struct {
 	Lobby       *Lobby
 	PlayerState *PlayerState
@@ -236,13 +252,4 @@ func (gm *Manager) removeFromLobby(lobbyId, playerId int) {
 
 	gm.BroadcastLobbyInfos()
 
-}
-
-func (gm *Manager) LeaveLobby(playerId int) {
-	gm.playersMutex.Lock()
-	state := gm.players[playerId]
-	gm.players[playerId] = programState{lobbyId: lobbyIdMenu}
-	gm.playersMutex.Unlock()
-
-	gm.removeFromLobby(state.lobbyId, playerId)
 }

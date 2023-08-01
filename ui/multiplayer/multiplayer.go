@@ -23,8 +23,6 @@ type model struct {
 	viewportHeight int
 	viewportPosY   int
 	viewportPosX   int
-	updates        int
-	//
 }
 
 func New(c common.Common, msg game.JoinSuccessMsg) *model {
@@ -43,7 +41,6 @@ func New(c common.Common, msg game.JoinSuccessMsg) *model {
 		boardHeight:  msg.BoardHeight,
 		viewportPosY: mod(msg.PlayerState.PosY-vh/2, msg.BoardHeight), // THIS IS THE LINE,
 		viewportPosX: mod(msg.PlayerState.PosX-vw/2, msg.BoardWidth),
-		// asdf: help.New()
 	}
 }
 
@@ -58,8 +55,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	var cmds []tea.Cmd
 
 	switch msg := msg.(type) {
-	// case game.JoinSuccessMsg:
-	// 	return m, nil
 
 	case tea.WindowSizeMsg:
 		m.viewportWidth = msg.Width / 2
@@ -69,9 +64,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		// 	m.viewportPosX = mod(m.playerState.PosX+m.viewportWidth/2, m.boardWidth)
 		// }
 
-	case game.UpdateBoardMsg:
-		m.updates++
-		// do nothing? just rerender
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, keybinds.KeyBinds.Quit):
@@ -122,7 +114,7 @@ var (
 
 func (m *model) View() string {
 	if m.lobby == nil {
-		return "loading... probably a critical error, there should be negligible loading"
+		return "loading... probably a critical error"
 	}
 
 	sb := strings.Builder{}
@@ -145,8 +137,6 @@ func (m *model) View() string {
 	sb.WriteString(m.lobby.ViewBoard(m.viewportPosY, m.viewportPosX, m.viewportWidth, m.viewportHeight))
 	sb.WriteString("\n")
 
-	// helpSb stri
-
 	sb.WriteString(helpStyle.MaxWidth(m.viewportWidth*2).Render(
 		"wasd/hjkl/←↑↓→",
 		"move",
@@ -156,14 +146,10 @@ func (m *model) View() string {
 		" • ",
 		"<enter>",
 		"play/edit",
+		" • ",
+		"<esc>",
+		"menu",
 	))
-
-	// mode += help
-	// mode += fmt.Sprintf("            %d/%d cells placed", m.playerState.Placed, game.MaxPlacedCells)
-	// mode += fmt.Sprintf("            %d/%d players", m.lobby.PlayerCount(), game.MaxPlayers)
-	// mode += fmt.Sprintf("            %s", m.playerState.Test)
-
-	// sb.WriteString(mode)
 
 	return sb.String()
 }

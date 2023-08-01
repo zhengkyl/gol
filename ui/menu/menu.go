@@ -12,6 +12,14 @@ import (
 	"github.com/zhengkyl/gol/ui/keybinds"
 )
 
+const title = `
+████████    ███████    ██
+██    ██    ██ f ██    ██
+████████    ███████    ██ ife
+  ame ██               █████████
+████████
+`
+
 type Model struct {
 	playerId       int
 	gm             *game.Manager
@@ -29,13 +37,13 @@ func New(common common.Common, gm *game.Manager, playerId int) *Model {
 		listItem{
 			titleLeft:  "Play singleplayer game",
 			titleRight: "",
-			descLeft:   "Conway's game of life",
+			descLeft:   "Classic Conway's Game of Life",
 			descRight:  "",
 		},
 		listItem{
 			titleLeft:  "Create multiplayer lobby",
 			titleRight: "",
-			descLeft:   "Play with up to 10 other players",
+			descLeft:   "Play with up to 10 players",
 			descRight:  "",
 		},
 	)
@@ -45,9 +53,9 @@ func New(common common.Common, gm *game.Manager, playerId int) *Model {
 
 func (m *Model) SetSize(width, height int) {
 	m.common.Width = width
-	m.common.Height = height
+	m.common.Height = height - 7
 
-	m.visibleOptions = (height - 1) / 4
+	m.visibleOptions = (m.common.Height - 1) / 4
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -62,15 +70,21 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.SetSize(msg.Width, msg.Height)
 	case []game.LobbyInfo:
-		// return m, tea.Quit
 		m.lobbyInfos = msg
 		m.options = m.options[:2]
 		for _, status := range msg {
 			m.options = append(m.options, listItem{
-				titleLeft:  fmt.Sprintf("Join %v-%v", status.Name, status.Id),
-				titleRight: fmt.Sprintf("Online %v/%v", status.PlayerCount, status.MaxPlayers),
-				descLeft:   fmt.Sprint(status.Id),
+				titleLeft:  fmt.Sprintf("Join lobby: %v", status.Name),
+				titleRight: fmt.Sprintf("%v/%v players", status.PlayerCount, status.MaxPlayers),
+				descLeft:   fmt.Sprintf("id: %v", status.Id),
 			})
+		}
+		if m.activeIndex >= len(m.options) {
+			m.activeIndex = len(m.options) - 1
+			m.scrollIndex = m.activeIndex - m.visibleOptions + 1
+			if m.scrollIndex < 0 {
+				m.scrollIndex = 0
+			}
 		}
 	case tea.KeyMsg:
 		switch {
@@ -127,37 +141,46 @@ var (
 	activeItemStyle  = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true).Padding(0, 1)
 	titleStyle       = lipgloss.NewStyle().Bold(true)
 	activeTitleStyle = lipgloss.NewStyle().Bold(true).Foreground(lipgloss.Color("207"))
-	descStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("254"))
+	descStyle        = lipgloss.NewStyle().Foreground(lipgloss.Color("252"))
 )
 
 func (m *Model) View() string {
 	viewSb := strings.Builder{}
 	itemSb := strings.Builder{}
 
-	// viewSb.WriteString(fmt.Sprint(m.gm.LobbyInfos()))
-	// viewSb.WriteString(m.gm.Debug())
-	// viewSb.WriteString(fmt.Sprint(m.visibleOptions))
+	contentWidth := m.common.Width
+	if contentWidth > 60 {
+		contentWidth = 60
+	}
+
+	viewStyle := lipgloss.NewStyle().MarginLeft((m.common.Width - contentWidth) / 2)
 
 	for i := m.scrollIndex; i < m.scrollIndex+m.visibleOptions && i < len(m.options); i++ {
 		li := m.options[i]
-		title := titleStyle
-		item := itemStyle
+		titleStyle := titleStyle
+		itemStyle := itemStyle
 		if i == m.activeIndex {
-			title = activeTitleStyle
-			item = activeItemStyle
+			titleStyle = activeTitleStyle
+			itemStyle = activeItemStyle
 		}
 		// factor in border + margin
-		itemSb.WriteString(title.Render(alignLeftRight(li.titleLeft, li.titleRight, m.common.Width-4)))
+		itemSb.WriteString(titleStyle.Render(alignLeftRight(li.titleLeft, li.titleRight, contentWidth-4)))
 		itemSb.WriteString("\n")
-		itemSb.WriteString(descStyle.Render(alignLeftRight(li.descLeft, li.descRight, m.common.Width-4)))
+		itemSb.WriteString(descStyle.Render(alignLeftRight(li.descLeft, li.descRight, contentWidth-4)))
 
-		viewSb.WriteString(item.Render(itemSb.String()))
+		viewSb.WriteString(itemStyle.Render(itemSb.String()))
 		viewSb.WriteString("\n")
 
 		itemSb.Reset()
 	}
 
-	return viewSb.String()
+	titleStr := title
+	titleLeftPad := (m.common.Width - 32) / 2
+	if titleLeftPad > 0 {
+		titleStr = lipgloss.NewStyle().MarginLeft(titleLeftPad).Render(titleStr)
+	}
+
+	return titleStr + "\n" + viewStyle.Render(viewSb.String())
 }
 
 type listItem struct {
