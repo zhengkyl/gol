@@ -5,7 +5,6 @@ const DeadPlayer = 0
 type Cell struct {
 	Player       int
 	PausedPlayer int
-	Age          int
 }
 
 func NewBoard(width, height int) [][]Cell {
@@ -31,7 +30,6 @@ func NextBoard(board [][]Cell) [][]Cell {
 
 			numNeighbors := 0
 			mostColor := 0
-			mostNeighbors := 0
 			for dy := -1; dy <= 1; dy++ {
 				for dx := -1; dx <= 1; dx++ {
 					if dx == 0 && dy == 0 {
@@ -45,7 +43,7 @@ func NextBoard(board [][]Cell) [][]Cell {
 						neighbors[board[ny][nx].Player]++
 						numNeighbors++
 
-						if neighbors[board[ny][nx].Player] > mostNeighbors {
+						if neighbors[board[ny][nx].Player] > neighbors[mostColor] {
 							mostColor = board[ny][nx].Player
 						}
 					}
@@ -54,12 +52,16 @@ func NextBoard(board [][]Cell) [][]Cell {
 
 			newBoard[y][x].PausedPlayer = board[y][x].PausedPlayer
 
+			// One color must have a majority of 2 or 3 neighbors
+			if neighbors[mostColor] < 2 {
+				continue
+			}
+
 			if board[y][x].Player == DeadPlayer && numNeighbors == 3 {
 				newBoard[y][x].Player = mostColor
 			}
 			if board[y][x].Player != DeadPlayer && (numNeighbors == 2 || numNeighbors == 3) {
 				newBoard[y][x].Player = mostColor
-				newBoard[y][x].Age = board[y][x].Age + 1
 			}
 		}
 
