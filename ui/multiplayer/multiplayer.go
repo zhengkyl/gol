@@ -39,7 +39,7 @@ func New(c common.Common, msg game.JoinSuccessMsg) *model {
 		playerState:  msg.PlayerState,
 		boardWidth:   msg.BoardWidth,
 		boardHeight:  msg.BoardHeight,
-		viewportPosY: mod(msg.PlayerState.PosY-vh/2, msg.BoardHeight), // THIS IS THE LINE,
+		viewportPosY: mod(msg.PlayerState.PosY-vh/2, msg.BoardHeight),
 		viewportPosX: mod(msg.PlayerState.PosX-vw/2, msg.BoardWidth),
 	}
 }
@@ -47,6 +47,7 @@ func New(c common.Common, msg game.JoinSuccessMsg) *model {
 func (m *model) Init() tea.Cmd {
 	return nil
 }
+
 func mod(dividend, divisor int) int {
 	return (dividend + divisor) % divisor
 }
@@ -59,10 +60,6 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.WindowSizeMsg:
 		m.viewportWidth = msg.Width / 2
 		m.viewportHeight = msg.Height - 2
-		// if m.playerState != nil {
-		// 	m.viewportPosY = mod(m.playerState.PosY-m.viewportHeight/2, m.boardHeight)
-		// 	m.viewportPosX = mod(m.playerState.PosX+m.viewportWidth/2, m.boardWidth)
-		// }
 
 	case tea.KeyMsg:
 		switch {

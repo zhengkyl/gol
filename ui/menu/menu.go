@@ -10,6 +10,7 @@ import (
 	"github.com/zhengkyl/gol/game"
 	"github.com/zhengkyl/gol/ui/common"
 	"github.com/zhengkyl/gol/ui/keybinds"
+	"github.com/zhengkyl/pearls/scrollbar"
 )
 
 const title = `
@@ -19,6 +20,12 @@ const title = `
   ame ██               █████████
 ████████
 `
+
+var (
+	titleWidth  = lipgloss.Width(title)
+	titleHeight = lipgloss.Height(title)
+	scrollStyle = lipgloss.NewStyle().Border(lipgloss.RoundedBorder(), true)
+)
 
 type Model struct {
 	playerId       int
@@ -48,14 +55,9 @@ func New(common common.Common, gm *game.Manager, playerId int) *Model {
 		},
 	)
 
-	return &Model{common: common, gm: gm, options: options, playerId: playerId}
-}
-
-func (m *Model) SetSize(width, height int) {
-	m.common.Width = width
-	m.common.Height = height - 7
-
-	m.visibleOptions = (m.common.Height - 1) / 4
+	m := &Model{common: common, gm: gm, options: options, playerId: playerId}
+	m.visibleOptions = (m.common.Height - titleHeight) / 2
+	return m
 }
 
 func (m *Model) Init() tea.Cmd {
@@ -66,9 +68,11 @@ func (m *Model) Init() tea.Cmd {
 
 func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	switch msg := msg.(type) {
-
 	case tea.WindowSizeMsg:
-		m.SetSize(msg.Width, msg.Height)
+		m.common.Width = msg.Width
+		m.common.Height = msg.Height
+		m.visibleOptions = (msg.Height - titleHeight) / 4
+
 	case []game.LobbyInfo:
 		m.lobbyInfos = msg
 		m.options = m.options[:2]
@@ -89,20 +93,18 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 	case tea.KeyMsg:
 		switch {
 		case key.Matches(msg, keybinds.KeyBinds.Down):
-			m.activeIndex = (m.activeIndex + 1 + len(m.options)) % len(m.options)
-			if m.activeIndex < m.scrollIndex {
-				m.scrollIndex = m.activeIndex
-			}
-			if m.activeIndex >= m.scrollIndex+m.visibleOptions {
-				m.scrollIndex = m.activeIndex - m.visibleOptions + 1
+			if m.activeIndex < len(m.options)-1 {
+				m.activeIndex++
+				if m.activeIndex == m.scrollIndex+m.visibleOptions {
+					m.scrollIndex++
+				}
 			}
 		case key.Matches(msg, keybinds.KeyBinds.Up):
-			m.activeIndex = (m.activeIndex - 1 + len(m.options)) % len(m.options)
-			if m.activeIndex < m.scrollIndex {
-				m.scrollIndex = m.activeIndex
-			}
-			if m.activeIndex >= m.scrollIndex+m.visibleOptions {
-				m.scrollIndex = m.activeIndex - m.visibleOptions + 1
+			if m.activeIndex > 0 {
+				m.activeIndex--
+				if m.activeIndex == m.scrollIndex-1 {
+					m.scrollIndex--
+				}
 			}
 		case key.Matches(msg, keybinds.KeyBinds.Enter):
 			switch m.activeIndex {
@@ -153,6 +155,11 @@ func (m *Model) View() string {
 		contentWidth = 60
 	}
 
+	itemWidth := contentWidth
+	if len(m.options) > m.visibleOptions {
+		itemWidth -= 3
+	}
+
 	viewStyle := lipgloss.NewStyle().MarginLeft((m.common.Width - contentWidth) / 2)
 
 	for i := m.scrollIndex; i < m.scrollIndex+m.visibleOptions && i < len(m.options); i++ {
@@ -164,9 +171,9 @@ func (m *Model) View() string {
 			itemStyle = activeItemStyle
 		}
 		// factor in border + margin
-		itemSb.WriteString(titleStyle.Render(alignLeftRight(li.titleLeft, li.titleRight, contentWidth-4)))
+		itemSb.WriteString(titleStyle.Render(alignLeftRight(li.titleLeft, li.titleRight, itemWidth-4)))
 		itemSb.WriteString("\n")
-		itemSb.WriteString(descStyle.Render(alignLeftRight(li.descLeft, li.descRight, contentWidth-4)))
+		itemSb.WriteString(descStyle.Render(alignLeftRight(li.descLeft, li.descRight, itemWidth-4)))
 
 		viewSb.WriteString(itemStyle.Render(itemSb.String()))
 		viewSb.WriteString("\n")
@@ -175,12 +182,19 @@ func (m *Model) View() string {
 	}
 
 	titleStr := title
-	titleLeftPad := (m.common.Width - 32) / 2
+	titleLeftPad := (m.common.Width - titleWidth) / 2
 	if titleLeftPad > 0 {
 		titleStr = lipgloss.NewStyle().MarginLeft(titleLeftPad).Render(titleStr)
 	}
 
-	return titleStr + "\n" + viewStyle.Render(viewSb.String())
+	options := viewStyle.Render(viewSb.String())
+	if len(m.options) > m.visibleOptions {
+		numPos := len(m.options) - m.visibleOptions + 1
+		listHeight := m.common.Height - titleHeight
+		scroll := scrollStyle.Render(scrollbar.RenderScrollbar(listHeight-(listHeight%4)-2, numPos, m.scrollIndex))
+		options = lipgloss.JoinHorizontal(lipgloss.Top, options, scroll)
+	}
+	return titleStr + "\n" + options
 }
 
 type listItem struct {
