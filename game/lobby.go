@@ -41,7 +41,7 @@ type Lobby struct {
 }
 
 const MaxPlayers = 10
-const MaxPlacedCells = 40
+const MaxPlacedCells = 50
 const drawRate = 20
 const generationRate = 5
 const drawsPerGeneration = drawRate / generationRate
@@ -108,8 +108,6 @@ func (l *Lobby) Join(playerId int, p *tea.Program) (*PlayerState, error) {
 
 	l.players[playerId] = ps
 
-	// p.Send(JoinLobbyMsg{})
-
 	return ps, nil
 }
 
@@ -133,10 +131,6 @@ func (l *Lobby) Leave(playerId int) {
 			}
 		}
 	}
-}
-
-func (l *Lobby) Unpause() {
-	// update
 }
 
 func (l *Lobby) BoardSize() (int, int) {

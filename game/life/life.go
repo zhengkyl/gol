@@ -59,8 +59,7 @@ func NextBoard(board [][]Cell) [][]Cell {
 
 			if board[y][x].Player == DeadPlayer && numNeighbors == 3 {
 				newBoard[y][x].Player = mostColor
-			}
-			if board[y][x].Player != DeadPlayer && (numNeighbors == 2 || numNeighbors == 3) {
+			} else if board[y][x].Player != DeadPlayer && (numNeighbors == 2 || numNeighbors == 3) {
 				newBoard[y][x].Player = mostColor
 			}
 		}

@@ -16,7 +16,6 @@ import (
 type model struct {
 	playerState *game.PlayerState
 	lobby       *game.Lobby
-	id          int
 	boardWidth  int
 	boardHeight int
 	//
@@ -36,7 +35,6 @@ func New(c common.Common, msg game.JoinSuccessMsg) *model {
 		viewportHeight: vh,
 
 		lobby:        msg.Lobby,
-		id:           msg.Id,
 		playerState:  msg.PlayerState,
 		boardWidth:   msg.BoardWidth,
 		boardHeight:  msg.BoardHeight,
@@ -50,8 +48,6 @@ func (m *model) Init() tea.Cmd {
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
-	var cmds []tea.Cmd
-
 	switch msg := msg.(type) {
 
 	case tea.WindowSizeMsg:
@@ -93,13 +89,13 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 			}
 
 		case key.Matches(msg, keybinds.KeyBinds.Place):
-			m.lobby.Place(m.id)
+			m.lobby.Place(m.playerState.Id)
 		case key.Matches(msg, keybinds.KeyBinds.Enter):
-			m.lobby.TogglePause(m.id)
+			m.lobby.TogglePause(m.playerState.Id)
 		}
 	}
 
-	return m, tea.Batch(cmds...)
+	return m, nil
 }
 
 var (

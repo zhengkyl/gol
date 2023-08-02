@@ -188,7 +188,7 @@ func (gm *Manager) LeaveLobby(playerId int) {
 type JoinSuccessMsg struct {
 	Lobby       *Lobby
 	PlayerState *PlayerState
-	Id          int
+	// Id          int
 	BoardWidth  int
 	BoardHeight int
 }
@@ -224,7 +224,6 @@ func (gm *Manager) JoinLobby(lobbyId int, playerId int) tea.Msg {
 	return JoinSuccessMsg{
 		Lobby:       lobby,
 		PlayerState: ps,
-		Id:          lobbyId,
 		BoardWidth:  bw,
 		BoardHeight: bh,
 	}
