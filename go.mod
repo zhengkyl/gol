@@ -35,5 +35,6 @@ require (
 	github.com/rivo/uniseg v0.2.0 // indirect
 	github.com/zhengkyl/pearls v0.1.0
 	golang.org/x/crypto v0.7.0 // indirect
+	golang.org/x/exp v0.0.0-20230801115018-d63ba01acd4b
 	golang.org/x/sys v0.6.0 // indirect
 )

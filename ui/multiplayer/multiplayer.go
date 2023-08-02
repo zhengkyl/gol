@@ -10,6 +10,7 @@ import (
 	"github.com/zhengkyl/gol/game"
 	"github.com/zhengkyl/gol/ui/common"
 	"github.com/zhengkyl/gol/ui/keybinds"
+	"github.com/zhengkyl/gol/util"
 )
 
 type model struct {
@@ -39,17 +40,13 @@ func New(c common.Common, msg game.JoinSuccessMsg) *model {
 		playerState:  msg.PlayerState,
 		boardWidth:   msg.BoardWidth,
 		boardHeight:  msg.BoardHeight,
-		viewportPosY: mod(msg.PlayerState.PosY-vh/2, msg.BoardHeight),
-		viewportPosX: mod(msg.PlayerState.PosX-vw/2, msg.BoardWidth),
+		viewportPosY: util.Mod(msg.PlayerState.PosY-vh/2, msg.BoardHeight),
+		viewportPosX: util.Mod(msg.PlayerState.PosX-vw/2, msg.BoardWidth),
 	}
 }
 
 func (m *model) Init() tea.Cmd {
 	return nil
-}
-
-func mod(dividend, divisor int) int {
-	return (dividend + divisor) % divisor
 }
 
 func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
@@ -73,26 +70,26 @@ func (m *model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 
 		switch {
 		case key.Matches(msg, keybinds.KeyBinds.Up):
-			m.playerState.PosY = mod(m.playerState.PosY-1, m.boardHeight)
-			if m.playerState.PosY == mod(m.viewportPosY-1, m.boardHeight) {
+			m.playerState.PosY = util.Mod(m.playerState.PosY-1, m.boardHeight)
+			if m.playerState.PosY == util.Mod(m.viewportPosY-1, m.boardHeight) {
 				m.viewportPosY = m.playerState.PosY
 			}
 
 		case key.Matches(msg, keybinds.KeyBinds.Left):
-			m.playerState.PosX = mod(m.playerState.PosX-1, m.boardWidth)
-			if m.playerState.PosX == mod(m.viewportPosX-1, m.boardWidth) {
+			m.playerState.PosX = util.Mod(m.playerState.PosX-1, m.boardWidth)
+			if m.playerState.PosX == util.Mod(m.viewportPosX-1, m.boardWidth) {
 				m.viewportPosX = m.playerState.PosX
 			}
 		case key.Matches(msg, keybinds.KeyBinds.Down):
 
-			m.playerState.PosY = mod(m.playerState.PosY+1, m.boardHeight)
-			if m.playerState.PosY == mod(m.viewportPosY+m.viewportHeight, m.boardHeight) {
-				m.viewportPosY = mod(m.viewportPosY+1, m.boardHeight)
+			m.playerState.PosY = util.Mod(m.playerState.PosY+1, m.boardHeight)
+			if m.playerState.PosY == util.Mod(m.viewportPosY+m.viewportHeight, m.boardHeight) {
+				m.viewportPosY = util.Mod(m.viewportPosY+1, m.boardHeight)
 			}
 		case key.Matches(msg, keybinds.KeyBinds.Right):
-			m.playerState.PosX = mod(m.playerState.PosX+1, m.boardWidth)
-			if m.playerState.PosX == mod(m.viewportPosX+m.viewportWidth, m.boardWidth) {
-				m.viewportPosX = mod(m.viewportPosX+1, m.boardWidth)
+			m.playerState.PosX = util.Mod(m.playerState.PosX+1, m.boardWidth)
+			if m.playerState.PosX == util.Mod(m.viewportPosX+m.viewportWidth, m.boardWidth) {
+				m.viewportPosX = util.Mod(m.viewportPosX+1, m.boardWidth)
 			}
 
 		case key.Matches(msg, keybinds.KeyBinds.Place):

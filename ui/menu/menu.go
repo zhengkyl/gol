@@ -56,7 +56,7 @@ func New(common common.Common, gm *game.Manager, playerId int) *Model {
 	)
 
 	m := &Model{common: common, gm: gm, options: options, playerId: playerId}
-	m.visibleOptions = (m.common.Height - titleHeight) / 2
+	m.visibleOptions = (m.common.Height - titleHeight) / 4
 	return m
 }
 
@@ -72,6 +72,14 @@ func (m *Model) Update(msg tea.Msg) (tea.Model, tea.Cmd) {
 		m.common.Width = msg.Width
 		m.common.Height = msg.Height
 		m.visibleOptions = (msg.Height - titleHeight) / 4
+
+		if m.visibleOptions == 0 {
+			m.scrollIndex = m.activeIndex
+		} else if m.activeIndex-m.scrollIndex+1 > m.visibleOptions {
+			m.scrollIndex = m.activeIndex - m.visibleOptions + 1
+		} else if m.scrollIndex > 0 && len(m.options)-m.scrollIndex < m.visibleOptions {
+			m.scrollIndex = len(m.options) - m.visibleOptions
+		}
 
 	case []game.LobbyInfo:
 		m.lobbyInfos = msg
@@ -184,17 +192,18 @@ func (m *Model) View() string {
 	titleStr := title
 	titleLeftPad := (m.common.Width - titleWidth) / 2
 	if titleLeftPad > 0 {
-		titleStr = lipgloss.NewStyle().MarginLeft(titleLeftPad).Render(titleStr)
+		// This newline compensates the one trimed by Render()
+		titleStr = lipgloss.NewStyle().MarginLeft(titleLeftPad).Render(titleStr) + "\n"
 	}
 
 	options := viewStyle.Render(viewSb.String())
 	if len(m.options) > m.visibleOptions {
 		numPos := len(m.options) - m.visibleOptions + 1
-		listHeight := m.common.Height - titleHeight
-		scroll := scrollStyle.Render(scrollbar.RenderScrollbar(listHeight-(listHeight%4)-2, numPos, m.scrollIndex))
+		scroll := scrollStyle.Render(scrollbar.RenderScrollbar((m.visibleOptions*4)-2, numPos, m.scrollIndex))
 		options = lipgloss.JoinHorizontal(lipgloss.Top, options, scroll)
 	}
-	return titleStr + "\n" + options
+
+	return titleStr + options
 }
 
 type listItem struct {
