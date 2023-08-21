@@ -317,7 +317,7 @@ func (l *Lobby) Place(id int) {
 		l.board[p.PosY][p.PosX].PausedPlayer = p.Id
 		p.Placed++
 
-	} else if l.board[p.PosY][p.PosX].PausedPlayer == p.Color {
+	} else if l.board[p.PosY][p.PosX].PausedPlayer == p.Id {
 		l.board[p.PosY][p.PosX].PausedPlayer = 0
 		p.Placed--
 	}
