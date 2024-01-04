@@ -2,6 +2,10 @@
 
 game of life using [wish](https://github.com/charmbracelet/wish) and [bubbletea](https://github.com/charmbracelet/bubbletea)
 
+Try at `ssh gol.kylezhe.ng`
+
+Workshop version under `workshop` branch.
+
 ## Running locally
 
 ```sh
