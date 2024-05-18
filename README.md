@@ -6,6 +6,8 @@ Try at `ssh gol.kylezhe.ng`
 
 Workshop version under `workshop` branch.
 
+![demo](./demo.gif)
+
 ## Running locally
 
 ```sh
